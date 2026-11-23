@@ -23,6 +23,8 @@ log = logging.getLogger(__name__)
 # A context provider returns one text block for this turn (or None to add nothing),
 # e.g. "<profile>allergies: peanuts</profile>". Providers decide what is relevant.
 ContextProvider = Callable[[ToolContext, str], str | None]
+# An output filter may rewrite the final answer (e.g. remove links that did not come from a tool).
+OutputFilter = Callable[[ToolContext, str], str]
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,7 @@ class Agent:
         store: ConversationStore,
         context_providers: Sequence[ContextProvider] = (),
         server_tools: Sequence[dict[str, Any]] = (),
+        output_filters: Sequence[OutputFilter] = (),
         services: dict[str, Any] | None = None,
     ):
         self.client = client
@@ -62,6 +65,7 @@ class Agent:
         self.registry = registry
         self.store = store
         self.context_providers = list(context_providers)
+        self.output_filters = list(output_filters)
         self.services = services or {}
         self.compactor = Compactor(client, config.model, config.compaction_threshold_tokens)
         self.loop_config = LoopConfig(
@@ -111,10 +115,14 @@ class Agent:
         self.store.append_usage(
             user_id, conv, {**meter.turn.to_dict(), "last_request_tokens": meter.last_request_tokens}
         )
+        answer = result.text
+        for output_filter in self.output_filters:
+            answer = output_filter(ctx, answer)
+        emit(AgentEvent("text", {"text": answer}))
         emit(AgentEvent("done", {"conversation_id": conv, "usage": meter.turn.to_dict()}))
         log.info("turn done: conv=%s calls=%d cost=$%.5f", conv, meter.turn.model_calls, meter.turn.cost_usd)
         return TurnResult(
-            conv, result.text, result.stop_reason, result.tools_used, result.tool_outputs, meter.turn
+            conv, answer, result.stop_reason, result.tools_used, result.tool_outputs, meter.turn
         )
 
     def _user_message(self, ctx: ToolContext, text: str, summary: str | None) -> dict[str, Any]:

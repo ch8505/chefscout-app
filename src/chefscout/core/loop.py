@@ -102,7 +102,6 @@ def run_turn(
     text = "".join(b["text"] for b in messages[-1]["content"] if b.get("type") == "text").strip()
     if messages[-1]["role"] != "assistant" or not text:
         text = _fallback_text(stop_reason)
-    emit(AgentEvent("text", {"text": text}))
     return LoopResult(text, stop_reason, tools_used, tool_outputs)
 
 
