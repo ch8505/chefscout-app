@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     model: str = "claude-haiku-5-5"
     effort: Effort = "low"
 
+    # Output cap per model call (includes thinking). Answers are short by design.
+    max_output_tokens: int = Field(default=8000, ge=256, le=64000)
+    # Safety net: maximum model calls in one user turn.
+    max_tool_iterations: int = Field(default=8, ge=1, le=30)
+    # Summarize the conversation when a request grows past this many tokens.
+    compaction_threshold_tokens: int = Field(default=30000, ge=2000)
+
     data_dir: Path = Path("data")
     max_web_searches: int = Field(default=3, ge=0, le=10)
     # Basic version; the dynamic-filtering version is not listed for Haiku 5.5.

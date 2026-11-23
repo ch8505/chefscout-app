@@ -4,7 +4,30 @@ A personal cooking agent. Ask for a dinner idea and get three real Hebrew recipe
 filtered by your allergies and the foods you never eat, matched against what you have at home, with
 substitutes for anything missing.
 
-> Status: early development (stage 0, project skeleton).
+> Status: early development (stage 1: agent core, no recipe tools yet).
+
+## Architecture
+
+```
+src/chefscout/
+  core/          the agent harness (domain-free)
+    agent.py       one user turn: history -> compaction -> context -> loop -> save
+    loop.py        model calls until it stops asking for tools (tool_use / pause_turn)
+    tools.py       tool registry: schemas, dispatch, errors returned as is_error
+    history.py     append-only JSONL conversations per user
+    compaction.py  summarizes long conversations
+    caching.py     prompt-cache breakpoints
+    usage.py       tokens and cost per call and per turn
+    events.py      progress events (streamed to the browser later)
+    llm.py         the Anthropic client (the only place that reads the key)
+  bootstrap.py   wires everything together; new features plug in here
+  prompts.py     the system prompt
+  config.py      typed settings from .env
+  server/        FastAPI app
+```
+
+A feature is a `Tool` registered in `bootstrap.build_registry()` and, if it needs context every turn,
+a context provider. The core does not change.
 
 ## Setup (Windows, PowerShell)
 
