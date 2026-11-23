@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     compaction_threshold_tokens: int = Field(default=30000, ge=2000)
 
     data_dir: Path = Path("data")
+    # Single local user for now; the stores are already per-user for sharing later.
+    default_user_id: str = "me"
     max_web_searches: int = Field(default=3, ge=0, le=10)
     # Basic version; the dynamic-filtering version is not listed for Haiku 5.5.
     web_search_tool: str = "web_search_20250305"
