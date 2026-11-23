@@ -20,7 +20,7 @@ from chefscout.prompts import SYSTEM_PROMPT
 from chefscout.recipes.fetch import PageFetcher
 from chefscout.recipes.guard import link_guard
 from chefscout.recipes.store import RecipeStore
-from chefscout.tools import memory_tools, recipe_tools
+from chefscout.tools import memory_tools, recipe_tools, substitution_tools
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ def build_stores(settings: Settings) -> Stores:
 def build_registry() -> ToolRegistry:
     """All our tools, in a fixed order (keeps the prompt cache stable)."""
     registry = ToolRegistry()
-    for tool in [*memory_tools.TOOLS, *recipe_tools.TOOLS]:
+    for tool in [*memory_tools.TOOLS, *recipe_tools.TOOLS, *substitution_tools.TOOLS]:
         registry.register(tool)
     return registry
 
