@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chefscout"
+version = "0.1.0"
+description = "A personal cooking agent: real Hebrew recipes from the web, filtered by your allergies and what you have at home."
+readme = "README.md"
+requires-python = ">=3.11"
+# Loose ranges here; exact versions are locked in requirements.txt.
+dependencies = [
+    "anthropic>=2.13",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic-settings>=2.4",
+    "httpx>=0.27",
+    "brotli>=1.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+chefscout = ["web/*", "data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

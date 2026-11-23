@@ -1,0 +1,17 @@
+# secrets
+.env
+
+# environment
+.venv/
+
+# runtime data (profiles, conversations, caches)
+data/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
