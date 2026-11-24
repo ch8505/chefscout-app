@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     max_web_searches: int = Field(default=3, ge=0, le=10)
     # Basic version; the dynamic-filtering version is not listed for Haiku 5.5.
     web_search_tool: str = "web_search_20250305"
+    # Optional two-letter country for localized results. Empty by default: IL is not supported by the API.
+    web_search_country: str | None = None
 
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)

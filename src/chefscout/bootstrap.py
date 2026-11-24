@@ -49,13 +49,18 @@ def build_registry() -> ToolRegistry:
 
 
 def web_search_tool(settings: Settings) -> dict[str, Any]:
-    """Claude's server-side web search, focused on Israel."""
-    return {
+    """Claude's server-side web search. Hebrew queries bring Hebrew sites.
+
+    No user_location by default: the API rejects country code IL ("Country code IL is not supported").
+    """
+    tool: dict[str, Any] = {
         "type": settings.web_search_tool,
         "name": "web_search",
         "max_uses": settings.max_web_searches,
-        "user_location": {"type": "approximate", "country": "IL", "timezone": "Asia/Jerusalem"},
     }
+    if settings.web_search_country:
+        tool["user_location"] = {"type": "approximate", "country": settings.web_search_country}
+    return tool
 
 
 def build_agent(

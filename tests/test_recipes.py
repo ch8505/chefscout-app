@@ -180,7 +180,8 @@ def test_web_search_is_offered_with_a_budget(settings):
     agent.send(user_id="me", text="היי")
     search = client.calls[0]["tools"][-1]
     assert search["name"] == "web_search" and search["type"] == "web_search_20250305"
-    assert search["max_uses"] == 3 and search["user_location"]["country"] == "IL"
+    # The API rejects country code IL, so no user_location is sent by default.
+    assert search["max_uses"] == 3 and "user_location" not in search
 
 
 # ---- safe fetching -----------------------------------------------------------------
