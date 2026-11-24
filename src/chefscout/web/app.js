@@ -26,7 +26,6 @@ const QUICK = {
 let conversationId = loadConversation();
 let busy = false;
 let pantryItems = [];
-let ticketCount = 0;
 
 // ---- small helpers -------------------------------------------------------------------
 function loadConversation() {
@@ -118,6 +117,11 @@ function appendToInput(text, replace = false) {
 }
 
 // ---- chat ------------------------------------------------------------------------------
+// Model text is plain text: drop markdown marks (**bold**, # headings, `code`) if any slip through.
+function plain(text) {
+  return String(text || "").replace(/\*\*|__|`/g, "").replace(/^#{1,6}\s+/gm, "");
+}
+
 function addMessage(role, text) {
   showHome(false);
   let node;
@@ -125,7 +129,7 @@ function addMessage(role, text) {
     node = el("div", "msg user", text);
   } else {
     node = el("div", `msg ${role}`);
-    node.append(spoon("av", role === "error" ? "oops" : "happy"), el("div", "bubble", text));
+    node.append(spoon("av", role === "error" ? "oops" : "happy"), el("div", "bubble", plain(text)));
   }
   $("messages").append(node);
   scrollDown();
@@ -156,7 +160,7 @@ function trailStop() { $("trail").hidden = true; }
 
 function setBusy(on) {
   busy = on;
-  for (const b of document.querySelectorAll("#send, #new-chat, .quick-btn, #suggestions .chip-btn, .t-chip, .mini-btn")) b.disabled = on;
+  for (const b of document.querySelectorAll("#send, #new-chat, .quick-btn, #suggestions .chip-btn, .t-chip, .reply, .r-btn")) b.disabled = on;
   if (on) trailStart(); else trailStop();
 }
 
@@ -225,18 +229,8 @@ function handleEvent(chunk) {
   }
 }
 
-// ---- the menu board: ideas before any recipe (no links here: an idea is not a recipe) ---------
-function miniButton(text, label, onClick, className = "") {
-  const b = el("button", `mini-btn ${className}`.trim(), text);
-  b.type = "button";
-  b.disabled = busy;
-  if (label) b.setAttribute("aria-label", label);
-  b.addEventListener("click", onClick);
-  return b;
-}
-
+// ---- ideas: part of the agent's chat message, with quick replies (an idea is not a recipe: no links) ----
 async function sendFeedback(target, feedback) {
-  if (busy) return null;
   const id = await ensureConversation();
   return api(`/api/conversations/${id}/feedback`, {
     method: "POST",
@@ -244,98 +238,86 @@ async function sendFeedback(target, feedback) {
   });
 }
 
-function dishRow(dish, inMeal) {
-  const row = el("li", `dish${dish.recipe ? " has-recipe" : ""}`);
-  const head = el("div", "d-head");
-  head.append(el("span", "d-role", dish.role_label), el("span", "d-name", dish.name));
-  const meta = [];
-  if (dish.est_minutes) meta.push(`כ-${dish.est_minutes} דק'`);
-  if (!inMeal) meta.push(dish.kosher_label);
-  if (dish.search_status === "not_found") meta.push("לא נמצא מתכון");
-  if (dish.recipe) meta.push("✓ יש מתכון");
-  row.append(head);
-  if (meta.length) row.append(el("div", "d-meta", meta.join(" · ")));
+function replyChip(text, onClick) {
+  const b = el("button", "reply", text);
+  b.type = "button";
+  b.disabled = busy;
+  b.addEventListener("click", onClick);
+  return b;
+}
 
-  const acts = el("div", "d-acts");
-  if (!dish.recipe) {
-    acts.append(miniButton("מתכון", `מתכון ל${dish.name}`, () =>
-      send(`תביא לי מתכון ל${dish.name}`, { type: "get_recipes", dish_id: dish.id }), "go"));
-  }
-  acts.append(miniButton("החלף", `החלפת ${dish.name}`, () =>
-    send(`תחליף את ${dish.name} במשהו אחר`, { type: "replace", dish_id: dish.id })));
-  acts.append(miniButton("לא מתאים", `${dish.name} לא מתאים לי`, async () => {
-    if (inMeal) { send(`${dish.name} לא מתאים לי`, { type: "reject", dish_id: dish.id }); return; }
-    try {
-      const plan = await sendFeedback(dish.id, "rejected");
-      if (plan) renderIdeas(plan);
-      toast(`${dish.name} לא יוצע לך בזמן הקרוב.`);
-    } catch { toast("לא הצלחתי לשמור. אפשר לנסות שוב."); }
-  }, "quiet"));
-  row.append(acts);
-  return row;
+function dishLine(dish, withKind) {
+  const li = el("li", dish.recipe ? "done" : "");
+  li.append(el("span", "i-role", dish.role_label), el("span", "i-name", dish.name));
+  const extra = [];
+  if (dish.est_minutes) extra.push(`כ-${dish.est_minutes} דק'`);
+  if (withKind) extra.push(dish.kosher_label);
+  if (dish.recipe) extra.push("✓ יש מתכון");
+  else if (dish.search_status === "not_found") extra.push("לא נמצא מתכון");
+  if (extra.length) li.append(el("span", "i-extra", extra.join(" · ")));
+  return li;
+}
+
+// The newest agent bubble, or a new one (after a refresh there is no answer to attach to).
+function agentBubble(fallbackText) {
+  const last = $("messages").lastElementChild;
+  if (last && last.classList.contains("agent")) return last.querySelector(".bubble");
+  return addMessage("agent", fallbackText).querySelector(".bubble");
 }
 
 function renderIdeas(plan) {
   if (!plan || (!plan.meals.length && !plan.ideas.length)) return;
   showHome(false);
-  // Only the newest board is live; older ones keep their text but lose their buttons.
-  document.querySelectorAll(".board:not(.stale)").forEach((b) => {
-    b.classList.add("stale");
-    b.querySelectorAll("button").forEach((btn) => btn.remove());
-  });
-  const board = el("section", "board");
-  board.setAttribute("aria-label", plan.meals.length ? "הצעות לארוחה" : "רעיונות");
-  const cards = el("div", "menus");
+  // Only the newest suggestions keep their quick replies.
+  document.querySelectorAll(".replies").forEach((r) => r.remove());
+  const bubble = agentBubble("ההצעות מהשיחה:");
+  const box = el("div", "ideas");
+  const replies = el("div", "replies");
+  replies.setAttribute("aria-label", "תשובות מהירות");
+
   if (plan.meals.length) {
     plan.meals.forEach((meal, i) => {
-      const card = el("article", "menu");
-      const top = el("div", "m-top");
-      top.append(el("span", "m-num", `ארוחה ${i + 1}`), el("span", `m-kosher k-${meal.kosher}`, meal.kosher_label));
-      card.append(top, el("h3", "m-title", meal.title));
-      const list = el("ul", "dishes");
-      for (const dish of meal.dishes) list.append(dishRow(dish, true));
-      card.append(list);
-      const needRecipe = meal.dishes.some((d) => !d.recipe);
-      if (needRecipe) {
-        card.append(miniButton("תביא מתכונים לכל הארוחה", `מתכונים לארוחה ${i + 1}`, () =>
-          send(`תביא מתכונים לארוחה ${i + 1}: ${meal.title}`, { type: "get_recipes", meal_id: meal.id }), "go wide"));
+      const block = el("section", "idea-meal");
+      const h = el("h4", "", `ארוחה ${i + 1} · ${meal.title}`);
+      h.append(el("span", `kind k-${meal.kosher}`, meal.kosher_label));
+      const list = el("ul");
+      for (const dish of meal.dishes) list.append(dishLine(dish, false));
+      block.append(h, list);
+      box.append(block);
+      if (meal.dishes.some((d) => !d.recipe)) {
+        replies.append(replyChip(`מתכונים לארוחה ${i + 1}`, () =>
+          send(`תביא מתכונים לארוחה ${i + 1}`, { type: "get_recipes", meal_id: meal.id })));
       }
-      cards.append(card);
     });
   } else {
-    const card = el("article", "menu");
-    card.append(el("div", "m-top", "רעיונות"));
-    const list = el("ul", "dishes");
-    for (const dish of plan.ideas) list.append(dishRow(dish, false));
-    card.append(list);
-    cards.append(card);
+    const list = el("ul", "idea-list");
+    for (const dish of plan.ideas) {
+      list.append(dishLine(dish, true));
+      if (!dish.recipe) {
+        replies.append(replyChip(`מתכון ל${dish.name}`, () =>
+          send(`תביא לי מתכון ל${dish.name}`, { type: "get_recipes", dish_id: dish.id })));
+      }
+    }
+    box.append(list);
   }
-  board.append(cards, el("p", "board-note", "אלה רעיונות. מתכון אמיתי עם קישור מגיע רק אחרי שבוחרים."));
-  $("messages").append(board);
+  box.append(el("p", "ideas-hint", "אפשר גם לכתוב, למשל: \"תחליף את התוספת\" או \"בלי דגים הפעם\"."));
+  bubble.append(box);
+  if (replies.childElementCount) bubble.closest(".msg").after(replies);
   scrollDown();
 }
 
-// ---- the pass: recipe tickets ---------------------------------------------------------------
+// ---- recipe cards: compact, right under the answer that brought them ---------------------------
 function renderRecipes(cards) {
   if (!cards.length) return;
   showHome(false);
-  const pass = el("section", "pass");
-  pass.setAttribute("aria-label", "המתכונים שנמצאו");
-  const rail = el("div", "rail");
-  rail.setAttribute("aria-hidden", "true");
-  const tickets = el("div", "tickets");
-  cards.forEach((card, i) => {
-    const ticket = recipeTicket(card);
-    ticket.classList.add("hang");
-    ticket.style.setProperty("--delay", `${i * 0.15}s`);
-    tickets.append(ticket);
-  });
-  pass.append(rail, tickets);
-  $("messages").append(pass);
+  const list = el("section", "rcards");
+  list.setAttribute("aria-label", "מתכונים");
+  for (const card of cards) list.append(recipeCard(card));
+  $("messages").append(list);
   scrollDown();
 }
 
-// A tappable ingredient on a ticket: asks the agent for a verified substitute.
+// A tappable ingredient: asks the agent for a verified substitute.
 function substituteChip(text, question, isRule) {
   const b = el("button", `t-chip${isRule ? " rule" : ""}`);
   b.type = "button";
@@ -346,35 +328,39 @@ function substituteChip(text, question, isRule) {
   return b;
 }
 
-function recipeTicket(card) {
-  const node = $("recipe-card").content.firstElementChild.cloneNode(true);
-  ticketCount += 1;
-  node.querySelector(".t-num").textContent = `#${String(ticketCount).padStart(2, "0")}`;
-  node.querySelector(".t-site").textContent = card.site || "";
-  if (card.role_label) node.querySelector(".t-top").prepend(el("span", "t-role", card.role_label));
-  if (card.alternative) {
-    node.classList.add("alt");
-    node.querySelector(".t-title").before(el("div", "t-alt", `⏱ ארוך מהמבוקש${card.minutes ? ` (${card.minutes} דק')` : ""}`));
-  } else if (card.time_fit === "close") {
-    node.querySelector(".t-title").before(el("div", "t-alt soft", "קצת יותר מהזמן שביקשת"));
-  }
+async function moreOptions(card, button) {
+  if (busy) return;
+  try {
+    const id = await ensureConversation();
+    const res = await api(`/api/conversations/${id}/more`, {
+      method: "POST",
+      body: JSON.stringify({ dish_id: card.dish_id, request_id: requestId() }),
+    });
+    if (res.cards.length) { renderRecipes(res.cards); button.remove(); return; } // no model call
+    if (res.needs_search) send(`עוד אפשרויות ל${card.role_label || card.title}`, { type: "more", dish_id: card.dish_id });
+  } catch { toast("לא הצלחתי להביא עוד אפשרויות. אפשר לנסות שוב."); }
+}
 
-  const img = node.querySelector(".t-img");
+function recipeCard(card) {
+  const node = $("recipe-card").content.firstElementChild.cloneNode(true);
+  const img = node.querySelector(".r-img");
   const image = card.image && safeUrl(card.image);
   if (image) { img.src = image; img.onerror = () => img.remove(); } else img.remove();
 
-  node.querySelector(".t-title").textContent = card.title;
-  const meta = node.querySelector(".t-meta");
-  if (card.minutes) {
-    const time = el("span");
-    time.append(el("b", "", String(card.minutes)), document.createTextNode(" דק'"));
-    meta.append(time);
-  }
-  if (card.servings) meta.append(el("span", "", card.servings));
-  if (!meta.childElementCount) meta.remove();
-  node.querySelector(".t-note").textContent = card.note || "";
+  const role = node.querySelector(".r-role");
+  if (card.role_label) role.textContent = card.role_label; else role.remove();
+  node.querySelector(".r-site").textContent = card.site || "";
+  node.querySelector(".r-title").textContent = card.title;
 
-  const rule = node.querySelector(".t-rule");
+  const meta = node.querySelector(".r-meta");
+  if (card.minutes) meta.append(el("span", "", `${card.minutes} דק'`));
+  if (card.servings) meta.append(el("span", "", card.servings));
+  if (card.alternative) { node.classList.add("alt"); meta.append(el("span", "r-warn", "⏱ ארוך מהזמן שביקשת")); }
+  else if (card.time_fit === "close") meta.append(el("span", "r-warn soft", "קצת מעבר לזמן"));
+  if (!meta.childElementCount) meta.remove();
+  node.querySelector(".r-note").textContent = card.note || "";
+
+  const rule = node.querySelector(".r-rule");
   if (card.needs_substitute.length) {
     for (const s of card.needs_substitute) {
       rule.querySelector(".t-chips").append(substituteChip(s.ingredient,
@@ -382,31 +368,29 @@ function recipeTicket(card) {
     }
   } else rule.remove();
 
-  const missing = node.querySelector(".t-missing");
+  const missing = node.querySelector(".r-missing");
   if (card.missing.length) {
-    missing.querySelector(".t-sec-h").textContent = `חסר לך (${card.missing.length}) · להקיש לתחליף`;
+    missing.querySelector("summary").textContent = `חסרים לך ${card.missing.length} מצרכים`;
     for (const item of card.missing) {
       missing.querySelector(".t-chips").append(substituteChip(item, `אין לי ${item} בשביל "${card.title}". במה אפשר להחליף?`, false));
     }
-    node.querySelector(".t-have").remove();
+    node.querySelector(".r-have").remove();
   } else missing.remove();
 
   const link = node.querySelector(".recipe-link");
   const url = safeUrl(card.url);
   if (url) link.href = url; else link.remove();
 
-  const actions = node.querySelector(".t-actions");
-  const extra = el("div", "t-extra");
-  extra.append(miniButton("שמור", `לשמור את ${card.title}`, async (e) => {
-    const b = e.currentTarget;
-    try { await sendFeedback(card.id, "saved"); b.replaceWith(el("span", "saved", "נשמר ✓")); }
+  const save = node.querySelector(".recipe-save");
+  save.addEventListener("click", async () => {
+    try { await sendFeedback(card.id, "saved"); save.replaceWith(el("span", "saved", "נשמר ✓")); }
     catch { toast("לא הצלחתי לשמור. אפשר לנסות שוב."); }
-  }));
-  if (card.dish_id) {
-    extra.append(miniButton("עוד אפשרויות", `עוד מתכונים ל${card.role_label || "מנה הזו"}`, () =>
-      send(`עוד אפשרויות ל${card.role_label || card.title}`, { type: "more", dish_id: card.dish_id })));
-  }
-  actions.after(extra);
+  });
+  const more = node.querySelector(".recipe-more");
+  if (card.dish_id) { more.hidden = false; more.addEventListener("click", () => moreOptions(card, more)); }
+  else more.remove();
+
+  const actions = node.querySelector(".r-actions");
   const rating = node.querySelector(".rating");
   node.querySelector(".recipe-cooked").addEventListener("click", (e) => {
     e.currentTarget.hidden = true;
@@ -666,7 +650,6 @@ $("new-chat").addEventListener("click", async () => {
   }
   saveConversation(null);
   $("messages").replaceChildren();
-  ticketCount = 0;
   showHome(true);
   refreshSidebar();
   toast("שיחה חדשה: המגנטים ירדו, המדבקות נשארו.");

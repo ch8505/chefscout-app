@@ -1,5 +1,5 @@
 /* ChefScout: "the fridge and the pass".
-   A warm home kitchen (tahini paper, aubergine ink) with one restaurant moment: recipe tickets on a rail.
+   A warm home kitchen (tahini paper, aubergine ink) with one restaurant moment: recipe cards with a clear "to the recipe" button.
    Every color is a token; dark mode redefines tokens only. */
 :root {
   --bg: #EDF0EA;          /* kitchen tiles */
@@ -201,7 +201,7 @@ button { cursor: pointer; }
   display: flex; flex-direction: column; gap: 8px;
   padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px));
 }
-@media (max-width: 860px) { .dock { background: linear-gradient(to top, var(--bg) 75%, transparent); } }
+.dock { background: linear-gradient(to top, var(--bg) 82%, transparent); padding-top: 18px; }
 .composer {
   display: flex; align-items: flex-end; gap: 8px; padding: 8px;
   background: var(--paper); border: 2px solid var(--ink); border-radius: 22px; box-shadow: 3px 3px 0 var(--ink);
@@ -235,73 +235,91 @@ button { cursor: pointer; }
   background: var(--ink); color: var(--bg); font-size: 0.92rem; box-shadow: 0 8px 20px var(--shadow-strong);
 }
 
-/* ---------- the pass: recipe tickets on a metal rail ---------- */
-.pass { display: flex; flex-direction: column; }
-.rail {
-  height: 12px; border-radius: 6px; position: relative; z-index: 1;
-  background: linear-gradient(180deg, var(--metal-hi), var(--metal) 65%);
-  box-shadow: 0 3px 4px var(--shadow);
+/* ---------- ideas: inside the agent's message, with quick replies under it ---------- */
+.msg.agent .bubble:has(.ideas) { width: min(560px, 100%); }
+.ideas { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; white-space: normal; }
+.idea-meal { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1.5px dashed var(--paper-edge); }
+.idea-meal h4 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 1rem; font-weight: 700; }
+.ideas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.idea-list { padding-top: 6px; }
+.ideas li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; line-height: 1.45; }
+.ideas li::before { content: "•"; color: var(--tomato); font-weight: 700; }
+.i-role { font-size: 0.8rem; font-weight: 700; color: var(--zaatar-ink); }
+.i-name { font-weight: 500; }
+.i-extra { font-size: 0.82rem; color: var(--muted); }
+.ideas li.done .i-extra { color: var(--zaatar-ink); font-weight: 600; }
+.kind { font-size: 0.75rem; font-weight: 700; padding: 0 8px; border-radius: 999px; border: 1.5px solid currentColor; }
+.kind.k-meat { color: var(--tomato-ink); }
+.kind.k-dairy { color: var(--ink); background: var(--mustard-soft); }
+.kind.k-parve { color: var(--zaatar-ink); }
+.ideas-hint { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.replies { align-self: flex-end; display: flex; flex-wrap: wrap; gap: 8px; margin-top: -4px; padding-inline-start: 40px; }
+.reply {
+  padding: 7px 14px; border-radius: 999px; border: 2px solid var(--tomato-ink); background: var(--paper);
+  color: var(--tomato-ink); font-weight: 700; font-size: 0.92rem; line-height: 1.3;
 }
-.tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; align-items: start; padding-top: 2px; }
-.ticket {
-  --tilt: 0deg;
-  position: relative; min-width: 0;
-  display: flex; flex-direction: column; gap: 9px;
-  padding: 24px 16px 28px; background: var(--paper);
-  transform: rotate(var(--tilt)); transform-origin: 50% 0;
-  box-shadow: 0 6px 14px var(--shadow);
-  /* torn zigzag bottom edge, like a kitchen order ticket */
-  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 9px) no-repeat,
-                conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 18px 9px repeat-x;
-          mask: linear-gradient(#000 0 0) top / 100% calc(100% - 9px) no-repeat,
-                conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 18px 9px repeat-x;
+.reply:hover { background: var(--tomato-ink); color: var(--on-accent); }
+.reply:disabled { opacity: .5; cursor: wait; }
+
+/* ---------- recipe cards: compact, under the answer that brought them ---------- */
+.rcards { display: flex; flex-direction: column; gap: 12px; align-self: stretch; padding-inline-start: 40px; }
+.rcard {
+  position: relative; display: flex; gap: 14px; align-items: flex-start; min-width: 0;
+  padding: 12px; background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: 3px 3px 0 var(--ink);
 }
-.ticket:nth-child(3n + 1) { --tilt: -1.2deg; }
-.ticket:nth-child(3n + 2) { --tilt: 0.9deg; }
-.ticket:nth-child(3n + 3) { --tilt: -0.5deg; }
-.clip {
-  position: absolute; top: -2px; left: 50%; transform: translateX(-50%); width: 46px; height: 14px;
-  background: var(--metal); border-radius: 0 0 6px 6px; box-shadow: inset 0 -3px 0 var(--metal-hi);
+.rcard.alt { border-style: dashed; box-shadow: none; }
+.r-img {
+  flex: none; width: 112px; height: 112px; object-fit: cover; border-radius: 10px;
+  border: 1.5px solid var(--ink); background: var(--paper-edge);
 }
-.t-top {
-  display: flex; justify-content: space-between; gap: 8px; padding-bottom: 6px;
-  border-bottom: 1.5px dashed var(--paper-edge);
-  font-size: 0.75rem; letter-spacing: .06em; color: var(--muted); font-variant-numeric: tabular-nums;
-}
-.t-site { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; direction: ltr; }
-.t-img {
-  display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 10; object-fit: cover;
-  border: 2px solid var(--ink); border-radius: 6px; background: var(--paper-edge);
-}
-.t-title { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; line-height: 1.25; text-wrap: balance; }
-.t-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.86rem; color: var(--muted); }
-.t-meta b { color: var(--ink); font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.t-note { margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--zaatar-ink); }
-.t-note:empty { display: none; }
-.t-sec { display: flex; flex-direction: column; gap: 6px; }
-.t-sec-h { font-size: 0.76rem; font-weight: 700; color: var(--muted); }
+.r-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.r-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.78rem; color: var(--muted); }
+.r-role { padding: 1px 8px; border-radius: 6px; background: var(--ink); color: var(--on-accent); font-weight: 700; }
+.r-site { direction: ltr; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.r-title { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 1.15rem; line-height: 1.25; text-wrap: balance; }
+.r-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.86rem; color: var(--muted); }
+.r-warn { font-weight: 700; color: var(--tomato-ink); }
+.r-warn.soft { color: var(--ink); background: var(--mustard-soft); padding: 0 6px; border-radius: 6px; }
+.r-note { margin: 0; font-size: 0.9rem; line-height: 1.45; color: var(--zaatar-ink); }
+.r-note:empty { display: none; }
+.r-rule { display: flex; flex-direction: column; gap: 5px; }
+.r-label, .r-hint { font-size: 0.76rem; font-weight: 700; color: var(--muted); margin: 0; }
+.r-missing summary { cursor: pointer; font-size: 0.86rem; font-weight: 700; color: var(--ink); width: fit-content; }
+.r-missing[open] summary { margin-bottom: 6px; }
+.r-missing .r-hint { margin-bottom: 6px; font-weight: 400; }
+.r-have { font-size: 0.86rem; font-weight: 600; color: var(--zaatar-ink); }
 .t-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .t-chip {
   display: inline-flex; align-items: center; gap: 6px; text-align: start; max-width: 100%;
   padding: 3px 10px; border-radius: 8px; border: 1.5px solid var(--ink); background: var(--paper);
-  font-size: 0.86rem; line-height: 1.35;
+  font-size: 0.84rem; line-height: 1.35;
 }
-.t-chip .ic { width: 14px; height: 14px; color: var(--muted); }
+.t-chip .ic { width: 14px; height: 14px; color: var(--muted); flex: none; }
 .t-chip:hover { background: var(--zaatar-soft); border-color: var(--zaatar); }
 .t-chip.rule { border-color: var(--tomato); background: var(--tomato-soft); color: var(--tomato-ink); font-weight: 600; }
 .t-chip.rule .ic { color: var(--tomato-ink); }
 .t-chip:disabled { opacity: .55; cursor: wait; }
-.t-have { font-size: 0.88rem; font-weight: 600; color: var(--zaatar-ink); }
-.t-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.t-btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 10px;
-  border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
-  font-weight: 700; font-size: 0.9rem; text-decoration: none;
-  box-shadow: 2px 2px 0 var(--ink); transition: transform .12s, box-shadow .12s;
+.r-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.r-go {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 10px;
+  background: var(--tomato-ink); color: var(--on-accent); border: 2px solid var(--tomato-ink);
+  font-weight: 700; font-size: 0.92rem; text-decoration: none;
 }
-.t-btn .ic { width: 15px; height: 15px; }
-.t-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
-.t-btn.go { background: var(--tomato-ink); color: var(--on-accent); }
+.r-go .ic { width: 15px; height: 15px; }
+.r-go:hover { filter: brightness(1.08); }
+.r-btn {
+  padding: 6px 12px; border-radius: 10px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+  font-weight: 600; font-size: 0.88rem;
+}
+.r-btn:hover { background: var(--zaatar-soft); }
+.r-btn:disabled { opacity: .55; cursor: wait; }
+@media (max-width: 560px) {
+  .rcards, .replies { padding-inline-start: 0; }
+  .r-img { width: 76px; height: 76px; }
+}
+
+/* rating, saved note and the "cooked!" stamp on a recipe card */
 .rating { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 0.9rem; font-weight: 600; }
 .rating button { border: none; background: none; padding: 2px; border-radius: 50%; transition: transform .15s; }
 .rating button:hover { transform: scale(1.15) rotate(-6deg); }
@@ -315,57 +333,6 @@ button { cursor: pointer; }
   color: var(--zaatar); opacity: .88;
 }
 .stamp small { display: block; font-family: var(--f-body); font-weight: 700; font-size: 0.8rem; letter-spacing: .08em; }
-.t-role {
-  padding: 1px 8px; border-radius: 6px; background: var(--ink); color: var(--on-accent);
-  font-weight: 700; letter-spacing: 0; white-space: nowrap;
-}
-.t-alt {
-  align-self: flex-start; padding: 2px 9px; border-radius: 6px; border: 1.5px dashed var(--tomato);
-  background: var(--tomato-soft); color: var(--tomato-ink); font-size: 0.82rem; font-weight: 700;
-}
-.t-alt.soft { border-color: var(--mustard); background: var(--mustard-soft); color: var(--ink); font-weight: 600; }
-.ticket.alt { opacity: .94; }
-.t-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-
-/* ---------- the menu board: ideas before recipes (chalk-free, on paper) ---------- */
-.board { display: flex; flex-direction: column; gap: 10px; }
-.menus { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; align-items: start; }
-.menu {
-  display: flex; flex-direction: column; gap: 10px; min-width: 0;
-  padding: 16px 16px 18px; background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius);
-  box-shadow: 4px 4px 0 var(--ink);
-}
-.m-top {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 6px;
-  border-bottom: 1.5px dashed var(--paper-edge); font-size: 0.78rem; font-weight: 700; color: var(--muted);
-}
-.m-kosher { padding: 1px 9px; border-radius: 999px; border: 1.5px solid currentColor; }
-.m-kosher.k-meat { color: var(--tomato-ink); }
-.m-kosher.k-dairy { color: var(--ink); background: var(--mustard-soft); }
-.m-kosher.k-parve { color: var(--zaatar-ink); }
-.m-title { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; line-height: 1.25; text-wrap: balance; }
-.dishes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.dish { display: flex; flex-direction: column; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--paper-edge); }
-.dish:last-child { border-bottom: none; padding-bottom: 0; }
-.d-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
-.d-role { font-size: 0.74rem; font-weight: 700; color: var(--zaatar-ink); }
-.d-name { font-weight: 600; overflow-wrap: anywhere; }
-.d-meta { font-size: 0.8rem; color: var(--muted); }
-.dish.has-recipe .d-meta { color: var(--zaatar-ink); font-weight: 600; }
-.d-acts { display: flex; flex-wrap: wrap; gap: 6px; }
-.mini-btn {
-  padding: 3px 10px; border-radius: 8px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
-  font-size: 0.82rem; font-weight: 600; line-height: 1.4;
-}
-.mini-btn:hover { background: var(--zaatar-soft); }
-.mini-btn.go { background: var(--tomato-ink); border-color: var(--tomato-ink); color: var(--on-accent); }
-.mini-btn.go:hover { filter: brightness(1.08); }
-.mini-btn.quiet { border-color: var(--paper-edge); color: var(--muted); }
-.mini-btn.wide { align-self: stretch; padding: 7px 12px; font-size: 0.9rem; }
-.mini-btn:disabled { opacity: .55; cursor: wait; }
-.board-note { margin: 0; font-family: var(--f-hand); font-size: 0.85rem; color: var(--muted); }
-.board.stale { opacity: .6; }
-.board.stale .board-note { display: none; }
 
 /* ---------- the fridge: labels, magnets, notebook ---------- */
 .fridge {
@@ -474,12 +441,8 @@ button { cursor: pointer; }
 .notebook li .n-date { font-family: var(--f-body); font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
 
 /* ---------- motion: only where it carries meaning ---------- */
-.ticket.hang { animation: hang 1s cubic-bezier(.3, 1.5, .5, 1) both; animation-delay: var(--delay, 0s); }
-@keyframes hang {
-  0% { transform: translateY(-36px) rotate(7deg); opacity: 0; }
-  25% { opacity: 1; }
-  100% { transform: rotate(var(--tilt)); }
-}
+.rcard { animation: rise .35s ease-out both; }
+@keyframes rise { from { transform: translateY(8px); opacity: 0; } }
 .stamp.in { animation: stampin .38s cubic-bezier(.2, 1.7, .4, 1) both; }
 @keyframes stampin { from { transform: translate(-50%, -50%) rotate(-14deg) scale(2.3); opacity: 0; } }
 .dymo-wrap.is-new { animation: stick .55s cubic-bezier(.2, 1.5, .4, 1) both; }

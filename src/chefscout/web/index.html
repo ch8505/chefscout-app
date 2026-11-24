@@ -142,33 +142,37 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <!-- A recipe ticket hanging on the pass. Filled by app.js from the server's card data only. -->
+  <!-- A compact recipe card under the answer that brought it. Filled by app.js from the server's card data only. -->
   <template id="recipe-card">
-    <article class="ticket">
-      <span class="clip" aria-hidden="true"></span>
-      <div class="t-top"><span class="t-num"></span><span class="t-site"></span></div>
-      <img class="t-img" alt="" loading="lazy" referrerpolicy="no-referrer">
-      <h3 class="t-title"></h3>
-      <div class="t-meta"></div>
-      <p class="t-note"></p>
-      <div class="t-sec t-rule">
-        <span class="t-sec-h">נגד כלל המטבח שלך · להקיש לתחליף</span>
-        <div class="t-chips"></div>
-      </div>
-      <div class="t-sec t-missing">
-        <span class="t-sec-h"></span>
-        <div class="t-chips"></div>
-      </div>
-      <div class="t-have">✓ יש לך את כל המצרכים</div>
-      <div class="t-actions">
-        <a class="t-btn go recipe-link" target="_blank" rel="noopener noreferrer">למתכון <svg class="ic" aria-hidden="true"><use href="#i-out"/></svg></a>
-        <button class="t-btn recipe-cooked" type="button">הכנתי</button>
-      </div>
-      <div class="rating" hidden>
-        <span>איך היה?</span>
-        <button type="button" data-rating="loved" aria-label="אהבתי" title="אהבתי"><svg aria-hidden="true"><use href="#face-loved"/></svg></button>
-        <button type="button" data-rating="ok" aria-label="בסדר" title="בסדר"><svg aria-hidden="true"><use href="#face-ok"/></svg></button>
-        <button type="button" data-rating="disliked" aria-label="לא בשבילי" title="לא בשבילי"><svg aria-hidden="true"><use href="#face-disliked"/></svg></button>
+    <article class="rcard">
+      <img class="r-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+      <div class="r-body">
+        <div class="r-top"><span class="r-role"></span><span class="r-site"></span></div>
+        <h3 class="r-title"></h3>
+        <div class="r-meta"></div>
+        <p class="r-note"></p>
+        <div class="r-rule">
+          <span class="r-label">נגד כלל המטבח שלך · להקיש לתחליף</span>
+          <div class="t-chips"></div>
+        </div>
+        <details class="r-missing">
+          <summary></summary>
+          <p class="r-hint">להקיש על מצרך כדי לשאול במה להחליף</p>
+          <div class="t-chips"></div>
+        </details>
+        <div class="r-have">✓ יש לך את כל המצרכים</div>
+        <div class="r-actions">
+          <a class="r-go recipe-link" target="_blank" rel="noopener noreferrer">למתכון <svg class="ic" aria-hidden="true"><use href="#i-out"/></svg></a>
+          <button class="r-btn recipe-cooked" type="button">הכנתי</button>
+          <button class="r-btn recipe-save" type="button">שמירה</button>
+          <button class="r-btn recipe-more" type="button" hidden>עוד אפשרויות</button>
+        </div>
+        <div class="rating" hidden>
+          <span>איך היה?</span>
+          <button type="button" data-rating="loved" aria-label="אהבתי" title="אהבתי"><svg aria-hidden="true"><use href="#face-loved"/></svg></button>
+          <button type="button" data-rating="ok" aria-label="בסדר" title="בסדר"><svg aria-hidden="true"><use href="#face-ok"/></svg></button>
+          <button type="button" data-rating="disliked" aria-label="לא בשבילי" title="לא בשבילי"><svg aria-hidden="true"><use href="#face-disliked"/></svg></button>
+        </div>
       </div>
     </article>
   </template>

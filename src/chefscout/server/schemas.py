@@ -190,6 +190,17 @@ class FeedbackRequest(BaseModel):
     request_id: str | None = Field(default=None, pattern=_ID)
 
 
+class MoreRequest(BaseModel):
+    dish_id: str = Field(pattern=_ID)
+    request_id: str | None = Field(default=None, pattern=_ID)
+
+
+class MoreResult(BaseModel):
+    cards: list[RecipeCard]
+    needs_search: bool  # nothing left from what was read: ask the model for one new search
+    duplicate: bool = False
+
+
 class SavedItem(BaseModel):
     title: str
     url: str | None

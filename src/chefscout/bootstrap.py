@@ -102,7 +102,7 @@ def build_agent(
             history_provider(stores.history, stores.profiles, settings),
         ],
         server_tools=[web_search_tool(settings)] if settings.max_web_searches > 0 else [],
-        output_filters=[link_guard(stores.recipes)],
+        output_filters=[link_guard(stores.recipes), plan_tools.ideas_brief],
         block_observers=[search_url_collector(stores.recipes)],
         services={
             "settings": settings,

@@ -276,6 +276,43 @@ def show_recipes(args: dict[str, Any], ctx: ToolContext) -> str:
     )
 
 
+def reveal_candidates(ctx: ToolContext, dish_id: str, limit: int = 2) -> list[CheckedRecipe]:
+    """More options for one dish with no model call: good recipes already read and not shown yet.
+
+    An empty list means a new search is needed (the caller asks the model). The in-time ones come
+    first; a much longer recipe is shown only as a marked alternative.
+    """
+    plans, store = ctx.services["plans"], ctx.services["recipes"]
+    plan = plans.load(ctx.user_id, ctx.conversation_id)
+    dish = plan.dish(dish_id) if plan else None
+    if dish is None or not dish.active:
+        raise ToolError(f"unknown or inactive dish id '{dish_id}'")
+    already = store.all_shown_ids(ctx.user_id, ctx.conversation_id)
+    items = [store.get(ctx.user_id, ctx.conversation_id, rid) for rid in dish.candidates]
+    unseen = [i for i in items if i and i.check.status == "ok" and i.id not in already]
+    unseen.sort(key=lambda i: i.time_fit == "over")  # in time first
+    picked = unseen[:limit]
+    if not picked:
+        return []
+    alternatives = {i.id for i in picked if i.time_fit == "over"}
+    shown = store.mark_shown(ctx.user_id, ctx.conversation_id, {i.id: "" for i in picked}, alternatives)
+    plans.update_dish(
+        ctx.user_id,
+        ctx.conversation_id,
+        dish.id,
+        recipe_id=dish.recipe_id or picked[0].id,
+        shown_recipes=list(dict.fromkeys([*dish.shown_recipes, *(i.id for i in picked)])),
+        search_status="found",
+    )
+    history = ctx.services.get("history")
+    if history is not None:
+        for s in shown:
+            history.record(
+                ctx.user_id, "recipe", s.recipe.title, "shown", url=s.recipe.url, ref=ctx.conversation_id
+            )
+    return shown
+
+
 def _other_candidates(ctx: ToolContext, item: CheckedRecipe) -> list[CheckedRecipe]:
     """Good recipes read for the same dish (or, without a dish, in this conversation)."""
     return [

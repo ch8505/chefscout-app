@@ -148,7 +148,11 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
 
     if p.intent == "recipe":  # a specific dish: go straight to the search
         picked = _plans(ctx).select(ctx.user_id, ctx.conversation_id, dish_ids=[d.id for d in plan.ideas])
-        return "saved. search now for:\n" + "\n".join(f"{d.id}: {d.query or d.name}" for d in picked)
+        return (
+            "saved. search now for:\n"
+            + "\n".join(f"{d.id}: {d.query or d.name}" for d in picked)
+            + "\nthen read 3-6 pages and show up to 3 good recipes, all with this dish_id."
+        )
 
     ctx.turn["ideas_only"] = True  # no recipe reading and no links in this turn
     if left_out:  # saved without the dishes that could not be fixed
@@ -159,9 +163,18 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
     else:
         notes = f"\n{report.text()}" if report.text() else ""
     return (
-        f"saved ideas (shown to the user as idea cards, no links):\n{plan_summary(plan)}{notes}\n"
-        "Now answer briefly. Do NOT search yet: the user chooses first (select_dishes)."
+        f"saved ideas:\n{plan_summary(plan)}{notes}\n"
+        "The app shows this list to the user under your answer. Answer in ONE short sentence, without "
+        "listing the dishes. Do NOT search yet: the user chooses first (select_dishes)."
     )
+
+
+def ideas_brief(ctx: ToolContext, text: str) -> str:
+    """Output filter: in an ideas turn the app shows the list, so keep only the model's opening line."""
+    if not ctx.turn.get("ideas_only") or ctx.turn.get("shown"):
+        return text
+    first = text.strip().split("\n\n")[0].strip().split("\n")[0].strip()
+    return first if len(first) <= 240 else first[:239].rstrip() + "…"
 
 
 def replace_dish(args: dict[str, Any], ctx: ToolContext) -> str:
