@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from chefscout.config import Settings
-from chefscout.context import pantry_provider, profile_provider
+from chefscout.context import history_provider, pantry_provider, plan_provider, profile_provider
 from chefscout.core.agent import Agent, AgentConfig
 from chefscout.core.history import ConversationStore
 from chefscout.core.llm import build_client
@@ -95,7 +95,12 @@ def build_agent(
         ),
         registry=build_registry(),
         store=stores.conversations,
-        context_providers=[profile_provider(stores.profiles), pantry_provider(stores.pantry)],
+        context_providers=[
+            profile_provider(stores.profiles),
+            pantry_provider(stores.pantry),
+            plan_provider(stores.plans),
+            history_provider(stores.history, stores.profiles, settings),
+        ],
         server_tools=[web_search_tool(settings)] if settings.max_web_searches > 0 else [],
         output_filters=[link_guard(stores.recipes)],
         block_observers=[search_url_collector(stores.recipes)],
