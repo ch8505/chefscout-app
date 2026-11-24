@@ -25,9 +25,33 @@ def text_msg(text: str, stop: str = "end_turn", u: Usage | None = None) -> Messa
     return _msg([TextBlock(type="text", text=text)], stop, u)
 
 
-def tool_msg(*calls: tuple[str, dict[str, Any]], u: Usage | None = None) -> Message:
+def tool_msg(
+    *calls: tuple[str, dict[str, Any]], u: Usage | None = None, searched: list[str] | None = None
+) -> Any:
+    """The model calls tools. searched=[urls]: it first ran a web search that returned those urls."""
+    if searched is not None:
+        return raw_msg([*search_blocks(searched), *tool_use_blocks(calls)], "tool_use", u)
     blocks = [ToolUseBlock(type="tool_use", id=f"toolu_{next(_ids)}", name=n, input=a) for n, a in calls]
     return _msg(blocks, "tool_use", u)
+
+
+def search_blocks(urls: list[str], query: str = "מתכון") -> list[dict[str, Any]]:
+    sid = f"srvtoolu_{next(_ids)}"
+    return [
+        {"type": "server_tool_use", "id": sid, "name": "web_search", "input": {"query": query}},
+        {
+            "type": "web_search_tool_result",
+            "tool_use_id": sid,
+            "content": [
+                {"type": "web_search_result", "url": url, "title": "t", "encrypted_content": "x"}
+                for url in urls
+            ],
+        },
+    ]
+
+
+def tool_use_blocks(calls: tuple[tuple[str, dict[str, Any]], ...]) -> list[dict[str, Any]]:
+    return [{"type": "tool_use", "id": f"toolu_{next(_ids)}", "name": n, "input": a} for n, a in calls]
 
 
 def raw_msg(content: list[dict[str, Any]], stop: str, u: Usage | None = None) -> SimpleNamespace:

@@ -21,7 +21,7 @@ from chefscout.prompts import SYSTEM_PROMPT
 from chefscout.recipes.fetch import PageFetcher
 from chefscout.recipes.guard import link_guard
 from chefscout.recipes.plan import PlanStore
-from chefscout.recipes.store import RecipeStore
+from chefscout.recipes.store import RecipeStore, search_url_collector
 from chefscout.tools import feedback_tools, memory_tools, plan_tools, recipe_tools, substitution_tools
 
 
@@ -98,6 +98,7 @@ def build_agent(
         context_providers=[profile_provider(stores.profiles), pantry_provider(stores.pantry)],
         server_tools=[web_search_tool(settings)] if settings.max_web_searches > 0 else [],
         output_filters=[link_guard(stores.recipes)],
+        block_observers=[search_url_collector(stores.recipes)],
         services={
             "settings": settings,
             "profiles": stores.profiles,

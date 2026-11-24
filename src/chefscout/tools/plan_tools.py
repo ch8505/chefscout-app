@@ -106,6 +106,7 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
         picked = _plans(ctx).select(ctx.user_id, ctx.conversation_id, dish_ids=[d.id for d in plan.ideas])
         return "saved. search now for:\n" + "\n".join(f"{d.id}: {d.query or d.name}" for d in picked)
 
+    ctx.turn["ideas_only"] = True  # no recipe reading and no links in this turn
     notes = f"\n{report.text()}" if report.text() else ""
     return (
         f"saved ideas (shown to the user as idea cards, no links):\n{plan_summary(plan)}{notes}\n"

@@ -270,6 +270,23 @@ class PlanStore:
                 self._save(user_id, conversation_id, plan)
         return targets
 
+    def update_dish(self, user_id: str, conversation_id: str, dish_id: str, **fields: object) -> Dish:
+        """Set recipe fields of one dish (recipe_id, candidates, shown_recipes, search_status)."""
+        allowed = {"recipe_id", "candidates", "shown_recipes", "search_status"}
+        if set(fields) - allowed:
+            raise ValueError(f"only {', '.join(sorted(allowed))} can be updated here")
+        path = self.path(user_id, conversation_id)
+        with locked(path):
+            plan = self._require(user_id, conversation_id)
+            dish = plan.dish(dish_id)
+            if dish is None:
+                raise ToolError(f"unknown dish id '{dish_id}'")
+            for name, value in fields.items():
+                setattr(dish, name, value)
+            plan.version += 1
+            self._save(user_id, conversation_id, plan)
+        return dish
+
     def replace(
         self,
         user_id: str,

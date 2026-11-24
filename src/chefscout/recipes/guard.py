@@ -17,6 +17,8 @@ _URL = re.compile(r"https?://[^\s)\]>\"']+")
 def link_guard(store: RecipeStore):
     def apply(ctx: ToolContext, text: str) -> str:
         known = {u.rstrip("/") for u in store.known_urls(ctx.user_id, ctx.conversation_id)}
+        if ctx.turn.get("ideas_only") and not ctx.turn.get("shown"):
+            known = set()  # an idea is not a recipe: an ideas answer has no links at all
 
         def ok(url: str) -> bool:
             return url.rstrip("/.,") in known

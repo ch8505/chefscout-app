@@ -35,3 +35,7 @@ class CheckedRecipe(BaseModel):
     recipe: Recipe
     check: RecipeCheck
     note: str = ""  # the model's short note when shown (e.g. what to substitute)
+    dish_id: str | None = None  # the planned dish this recipe was read for (M1.D2), if any
+    kosher: Literal["meat", "dairy", "parve", "mixed"] | None = None
+    time_fit: Literal["ok", "close", "over", "unknown", "any"] = "any"
+    alternative: bool = False  # shown only as a marked alternative (e.g. longer than asked)

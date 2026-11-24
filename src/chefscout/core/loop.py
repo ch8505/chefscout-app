@@ -29,6 +29,8 @@ class LoopConfig:
     max_iterations: int
     system: list[dict[str, Any]]
     server_tools: list[dict[str, Any]] = field(default_factory=list)  # e.g. web search
+    # Called with every block the model returns, e.g. to remember which urls a web search found.
+    block_observers: list[Callable[[ToolContext, dict[str, Any]], None]] = field(default_factory=list)
 
 
 @dataclass
@@ -72,6 +74,8 @@ def run_turn(
         stop_reason = resp.stop_reason or "unknown"
 
         for b in assistant["content"]:
+            for observe in config.block_observers:
+                observe(ctx, b)
             if b.get("type") == "server_tool_use":
                 tools_used.append(b["name"])
                 emit(AgentEvent("tool_call", {"name": b["name"], "input": b.get("input", {})}))
