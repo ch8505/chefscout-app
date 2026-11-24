@@ -170,9 +170,18 @@ _DESCRIPTORS = {
         "טרי טרייה טריה טריים טריות קצוץ קצוצה קצוצים קצוצות פרוס פרוסה פרוסים פרוסות "
         "מגורר מגוררת מגוררים מגוררות כתוש כתושה כתושים כתושות שלם שלמה שלמים שלמות "
         "חתוך חתוכה חתוכים מרוסק מרוסקת מרוסקים מומס מומסת רך רכה יחידה יחידות קורט קמצוץ "
-        "חופן שן שיני לפי הטעם כ- כ בערך חבילת שקית שקיות פחית צרור ענף ענפי גביע גביעי"
+        "חופן שן שיני לפי הטעם כ- כ בערך חבילת שקית שקיות פחית צרור ענף ענפי גביע גביעי "
+        "מפורר מפוררת מפוררים מגורד מגורדת מבושל מבושלת מבושלים "
+        # amounts written as words: "חצי כוס", "רבע כפית", "1 ושליש כוס"
+        "חצי רבע שליש שלושת רבעי אחד אחת שני שתי שתיים שלוש שלושה ארבע ארבעה כמה מעט קצת"
     ).split()
 }
+
+
+def _drop(token: str, words: set[str]) -> bool:
+    """True if the token (or the token without a leading ו, "ושליש") is one of words."""
+    t = _norm(token)
+    return t in words or (t.startswith("ו") and len(t) > 2 and t[1:] in words)
 
 
 def ingredient_name(line: str) -> str:
@@ -183,14 +192,10 @@ def ingredient_name(line: str) -> str:
     """
     from chefscout.recipes.substitutions import UNITS  # here, to avoid a circular import
 
-    units = {_norm(u) for u in UNITS}
+    drop = {_norm(u) for u in UNITS} | _DESCRIPTORS
     text = re.sub(r"\([^)]*\)", " ", line or "")
     text = re.split(r",|\s-\s|\sאו\s", text)[0]
-    kept = [
-        t
-        for t in _WORD.findall(text)
-        if not any(ch.isnumeric() for ch in t) and _norm(t) not in units and _norm(t) not in _DESCRIPTORS
-    ]
+    kept = [t for t in _WORD.findall(text) if not any(ch.isnumeric() for ch in t) and not _drop(t, drop)]
     return " ".join(kept).strip(" -") or " ".join((line or "").split())
 
 
@@ -226,7 +231,17 @@ def rule_foods(rule: str) -> list[str]:
 def missing_lines(ingredients: list[str], pantry: list[str]) -> list[str]:
     """Ingredient lines that nothing in the pantry (or the staples) covers."""
     known = [*pantry, *STAPLES]
-    return [line for line in ingredients if not any(mentions(line, item) for item in known)]
+    return [
+        line
+        for line in ingredients
+        if not is_heading(line) and not any(mentions(line, item) for item in known)
+    ]
+
+
+def is_heading(line: str) -> bool:
+    """A section title inside the ingredient list ("לבצק:", "לפיזור מעל:"), not an ingredient."""
+    text = (line or "").strip()
+    return text.endswith(":") or not re.search(r"[^\W\d_]", text)  # no letter at all
 
 
 def _first_hit(ingredients: list[str], terms: list[str]) -> str | None:
