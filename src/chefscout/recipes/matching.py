@@ -78,6 +78,17 @@ def _word_match(token: str, word: str) -> bool:
         # recipe word is the singular of the searched plural
         if len(v) >= 3 and word.startswith(v) and word[len(v) :] in _PLURALS:
             return True
+        # a singular ending in ה and its plural, either way: ביצה ~ ביצים, עגבנייה ~ עגבניות
+        if _feminine_pair(v, word) or _feminine_pair(word, v):
+            return True
+    return False
+
+
+def _feminine_pair(singular: str, plural: str) -> bool:
+    for ending in ("יה", "ה"):
+        stem = singular[: -len(ending)]
+        if singular.endswith(ending) and len(stem) >= 2 and plural.startswith(stem):
+            return plural[len(stem) :] in ("ימ", "ות")
     return False
 
 
@@ -159,7 +170,7 @@ _DESCRIPTORS = {
         "טרי טרייה טריה טריים טריות קצוץ קצוצה קצוצים קצוצות פרוס פרוסה פרוסים פרוסות "
         "מגורר מגוררת מגוררים מגוררות כתוש כתושה כתושים כתושות שלם שלמה שלמים שלמות "
         "חתוך חתוכה חתוכים מרוסק מרוסקת מרוסקים מומס מומסת רך רכה יחידה יחידות קורט קמצוץ "
-        "חופן שן שיני לפי הטעם כ- כ בערך"
+        "חופן שן שיני לפי הטעם כ- כ בערך חבילת שקית שקיות פחית צרור ענף ענפי גביע גביעי"
     ).split()
 }
 
