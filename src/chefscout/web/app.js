@@ -156,20 +156,28 @@ function trailStop() { $("trail").hidden = true; }
 
 function setBusy(on) {
   busy = on;
-  for (const b of document.querySelectorAll("#send, #new-chat, .quick-btn, #suggestions .chip-btn, .t-chip")) b.disabled = on;
+  for (const b of document.querySelectorAll("#send, #new-chat, .quick-btn, #suggestions .chip-btn, .t-chip, .mini-btn")) b.disabled = on;
   if (on) trailStart(); else trailStop();
 }
 
-async function send(text) {
+// A fresh id per button press: the server does the same request only once (double clicks, retries).
+function requestId() {
+  try { return crypto.randomUUID(); } catch { return `r${Date.now()}${Math.random().toString(36).slice(2, 10)}`; }
+}
+
+// action (optional): a button on an idea or recipe card, e.g. { type: "get_recipes", meal_id: "M1" }.
+async function send(text, action = null) {
   if (busy || !text.trim()) return;
   stopDictation();
   addMessage("user", text);
   setBusy(true);
   try {
+    const body = { message: text, conversation_id: conversationId };
+    if (action) Object.assign(body, { action, request_id: requestId() });
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, conversation_id: conversationId }),
+      body: JSON.stringify(body),
     });
     if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
     await readEvents(res.body);
@@ -208,9 +216,103 @@ function handleEvent(chunk) {
   if (event === "start") saveConversation(payload.conversation_id);
   else if (event === "progress") trailProgress(payload.label, payload.tool);
   else if (event === "answer") addMessage("agent", payload.text);
+  else if (event === "ideas") renderIdeas(payload);
   else if (event === "recipes") renderRecipes(payload);
   else if (event === "error") addMessage("error", payload.message);
-  else if (event === "done") console.info("turn cost $", payload.usage?.cost_usd, payload.usage);
+  else if (event === "done") {
+    if (payload.duplicate) toast("הבקשה הזו כבר בוצעה.");
+    else console.info("turn cost $", payload.usage?.cost_usd, payload.usage);
+  }
+}
+
+// ---- the menu board: ideas before any recipe (no links here: an idea is not a recipe) ---------
+function miniButton(text, label, onClick, className = "") {
+  const b = el("button", `mini-btn ${className}`.trim(), text);
+  b.type = "button";
+  b.disabled = busy;
+  if (label) b.setAttribute("aria-label", label);
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+async function sendFeedback(target, feedback) {
+  if (busy) return null;
+  const id = await ensureConversation();
+  return api(`/api/conversations/${id}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ target, feedback, request_id: requestId() }),
+  });
+}
+
+function dishRow(dish, inMeal) {
+  const row = el("li", `dish${dish.recipe ? " has-recipe" : ""}`);
+  const head = el("div", "d-head");
+  head.append(el("span", "d-role", dish.role_label), el("span", "d-name", dish.name));
+  const meta = [];
+  if (dish.est_minutes) meta.push(`כ-${dish.est_minutes} דק'`);
+  if (!inMeal) meta.push(dish.kosher_label);
+  if (dish.search_status === "not_found") meta.push("לא נמצא מתכון");
+  if (dish.recipe) meta.push("✓ יש מתכון");
+  row.append(head);
+  if (meta.length) row.append(el("div", "d-meta", meta.join(" · ")));
+
+  const acts = el("div", "d-acts");
+  if (!dish.recipe) {
+    acts.append(miniButton("מתכון", `מתכון ל${dish.name}`, () =>
+      send(`תביא לי מתכון ל${dish.name}`, { type: "get_recipes", dish_id: dish.id }), "go"));
+  }
+  acts.append(miniButton("החלף", `החלפת ${dish.name}`, () =>
+    send(`תחליף את ${dish.name} במשהו אחר`, { type: "replace", dish_id: dish.id })));
+  acts.append(miniButton("לא מתאים", `${dish.name} לא מתאים לי`, async () => {
+    if (inMeal) { send(`${dish.name} לא מתאים לי`, { type: "reject", dish_id: dish.id }); return; }
+    try {
+      const plan = await sendFeedback(dish.id, "rejected");
+      if (plan) renderIdeas(plan);
+      toast(`${dish.name} לא יוצע לך בזמן הקרוב.`);
+    } catch { toast("לא הצלחתי לשמור. אפשר לנסות שוב."); }
+  }, "quiet"));
+  row.append(acts);
+  return row;
+}
+
+function renderIdeas(plan) {
+  if (!plan || (!plan.meals.length && !plan.ideas.length)) return;
+  showHome(false);
+  // Only the newest board is live; older ones keep their text but lose their buttons.
+  document.querySelectorAll(".board:not(.stale)").forEach((b) => {
+    b.classList.add("stale");
+    b.querySelectorAll("button").forEach((btn) => btn.remove());
+  });
+  const board = el("section", "board");
+  board.setAttribute("aria-label", plan.meals.length ? "הצעות לארוחה" : "רעיונות");
+  const cards = el("div", "menus");
+  if (plan.meals.length) {
+    plan.meals.forEach((meal, i) => {
+      const card = el("article", "menu");
+      const top = el("div", "m-top");
+      top.append(el("span", "m-num", `ארוחה ${i + 1}`), el("span", `m-kosher k-${meal.kosher}`, meal.kosher_label));
+      card.append(top, el("h3", "m-title", meal.title));
+      const list = el("ul", "dishes");
+      for (const dish of meal.dishes) list.append(dishRow(dish, true));
+      card.append(list);
+      const needRecipe = meal.dishes.some((d) => !d.recipe);
+      if (needRecipe) {
+        card.append(miniButton("תביא מתכונים לכל הארוחה", `מתכונים לארוחה ${i + 1}`, () =>
+          send(`תביא מתכונים לארוחה ${i + 1}: ${meal.title}`, { type: "get_recipes", meal_id: meal.id }), "go wide"));
+      }
+      cards.append(card);
+    });
+  } else {
+    const card = el("article", "menu");
+    card.append(el("div", "m-top", "רעיונות"));
+    const list = el("ul", "dishes");
+    for (const dish of plan.ideas) list.append(dishRow(dish, false));
+    card.append(list);
+    cards.append(card);
+  }
+  board.append(cards, el("p", "board-note", "אלה רעיונות. מתכון אמיתי עם קישור מגיע רק אחרי שבוחרים."));
+  $("messages").append(board);
+  scrollDown();
 }
 
 // ---- the pass: recipe tickets ---------------------------------------------------------------
@@ -249,6 +351,13 @@ function recipeTicket(card) {
   ticketCount += 1;
   node.querySelector(".t-num").textContent = `#${String(ticketCount).padStart(2, "0")}`;
   node.querySelector(".t-site").textContent = card.site || "";
+  if (card.role_label) node.querySelector(".t-top").prepend(el("span", "t-role", card.role_label));
+  if (card.alternative) {
+    node.classList.add("alt");
+    node.querySelector(".t-title").before(el("div", "t-alt", `⏱ ארוך מהמבוקש${card.minutes ? ` (${card.minutes} דק')` : ""}`));
+  } else if (card.time_fit === "close") {
+    node.querySelector(".t-title").before(el("div", "t-alt soft", "קצת יותר מהזמן שביקשת"));
+  }
 
   const img = node.querySelector(".t-img");
   const image = card.image && safeUrl(card.image);
@@ -287,6 +396,17 @@ function recipeTicket(card) {
   if (url) link.href = url; else link.remove();
 
   const actions = node.querySelector(".t-actions");
+  const extra = el("div", "t-extra");
+  extra.append(miniButton("שמור", `לשמור את ${card.title}`, async (e) => {
+    const b = e.currentTarget;
+    try { await sendFeedback(card.id, "saved"); b.replaceWith(el("span", "saved", "נשמר ✓")); }
+    catch { toast("לא הצלחתי לשמור. אפשר לנסות שוב."); }
+  }));
+  if (card.dish_id) {
+    extra.append(miniButton("עוד אפשרויות", `עוד מתכונים ל${card.role_label || "מנה הזו"}`, () =>
+      send(`עוד אפשרויות ל${card.role_label || card.title}`, { type: "more", dish_id: card.dish_id })));
+  }
+  actions.after(extra);
   const rating = node.querySelector(".rating");
   node.querySelector(".recipe-cooked").addEventListener("click", (e) => {
     e.currentTarget.hidden = true;
@@ -564,6 +684,8 @@ async function start() {
     }
   } catch { /* server down: the first send will say so */ }
   if (conversationId) {
+    // After a refresh: the saved ideas first, then the last recipe cards (both come from the server).
+    try { renderIdeas(await api(`/api/conversations/${conversationId}/plan`)); } catch { /* old id */ }
     try { renderRecipes(await api(`/api/conversations/${conversationId}/recipes`)); } catch { /* old id */ }
   }
   refreshSidebar();

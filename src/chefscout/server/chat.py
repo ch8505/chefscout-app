@@ -18,7 +18,8 @@ from chefscout.core.errors import ChefScoutError, MissingApiKeyError
 from chefscout.core.events import AgentEvent
 from chefscout.core.history import new_conversation_id
 from chefscout.memory.storage import locked
-from chefscout.server.schemas import RecipeCard
+from chefscout.server.idempotency import RequestLog
+from chefscout.server.schemas import ChatAction, PlanView, RecipeCard
 
 log = logging.getLogger(__name__)
 
@@ -61,12 +62,42 @@ def friendly_error(exc: BaseException) -> str:
     return "משהו השתבש. אפשר לנסות שוב."
 
 
+PLAN_TOOLS = {"propose_ideas", "replace_dish", "select_dishes", "record_feedback"}
+
+
+def action_note(action: ChatAction | None) -> str:
+    """A button press, as a short note for the model after the user's visible text."""
+    if action is None:
+        return ""
+    target = action.meal_id or action.dish_id or "?"
+    if action.type == "get_recipes" and action.meal_id:
+        return f"\n[button] the user chose meal {target}: select_dishes(meal_id={target}), then find recipes."
+    if action.type == "get_recipes":
+        return f"\n[button] the user chose dish {target}: select_dishes(dish_ids=[{target}]), then a recipe."
+    if action.type == "replace":
+        return f"\n[button] swap dish {target} for another dish of the same kind (replace_dish reason=user)."
+    if action.type == "reject":
+        return f"\n[button] the user does not like dish {target}: replace it (replace_dish reason=rejected)."
+    return f"\n[button] more recipes for dish {target} only (more_options)."
+
+
+def plan_view(agent: Agent, user_id: str, conv: str) -> dict[str, Any] | None:
+    plan = agent.services["plans"].load(user_id, conv)
+    if plan is None:
+        return None
+    recipes = agent.services["recipes"]
+    return PlanView.build(plan, lambda rid: recipes.get(user_id, conv, rid)).model_dump()
+
+
 def stream_turn(
     *,
     get_agent: Callable[[], Agent],
     user_id: str,
     message: str,
     conversation_id: str | None,
+    action: ChatAction | None = None,
+    request_id: str | None = None,
+    requests: RequestLog | None = None,
 ) -> Iterator[str]:
     conv = conversation_id or new_conversation_id()
     events: queue.Queue[Any] = queue.Queue()
@@ -78,10 +109,17 @@ def stream_turn(
         try:
             agent = get_agent()
             with locked(agent.store.path(user_id, conv)):  # one turn at a time per conversation
-                result = agent.send(user_id=user_id, text=message, conversation_id=conv, emit=emit)
+                if requests is not None and not requests.first_time(user_id, conv, request_id):
+                    events.put(("done", {"conversation_id": conv, "duplicate": True}))
+                    return
+                text = message + action_note(action)
+                result = agent.send(user_id=user_id, text=text, conversation_id=conv, emit=emit)
+            plan = agent.services["plans"].load(user_id, conv)
+            if PLAN_TOOLS & set(result.tools_used):
+                events.put(("ideas", plan_view(agent, user_id, conv)))
             if "show_recipes" in result.tools_used:
                 shown = agent.services["recipes"].last_shown(user_id, conv)
-                events.put(("recipes", [RecipeCard.from_checked(s).model_dump() for s in shown]))
+                events.put(("recipes", [RecipeCard.from_checked(s, plan).model_dump() for s in shown]))
         except (ChefScoutError, Exception) as exc:
             log.exception("chat turn failed")
             events.put(("error", {"message": friendly_error(exc)}))

@@ -315,6 +315,57 @@ button { cursor: pointer; }
   color: var(--zaatar); opacity: .88;
 }
 .stamp small { display: block; font-family: var(--f-body); font-weight: 700; font-size: 0.8rem; letter-spacing: .08em; }
+.t-role {
+  padding: 1px 8px; border-radius: 6px; background: var(--ink); color: var(--on-accent);
+  font-weight: 700; letter-spacing: 0; white-space: nowrap;
+}
+.t-alt {
+  align-self: flex-start; padding: 2px 9px; border-radius: 6px; border: 1.5px dashed var(--tomato);
+  background: var(--tomato-soft); color: var(--tomato-ink); font-size: 0.82rem; font-weight: 700;
+}
+.t-alt.soft { border-color: var(--mustard); background: var(--mustard-soft); color: var(--ink); font-weight: 600; }
+.ticket.alt { opacity: .94; }
+.t-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* ---------- the menu board: ideas before recipes (chalk-free, on paper) ---------- */
+.board { display: flex; flex-direction: column; gap: 10px; }
+.menus { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; align-items: start; }
+.menu {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 16px 16px 18px; background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.m-top {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 6px;
+  border-bottom: 1.5px dashed var(--paper-edge); font-size: 0.78rem; font-weight: 700; color: var(--muted);
+}
+.m-kosher { padding: 1px 9px; border-radius: 999px; border: 1.5px solid currentColor; }
+.m-kosher.k-meat { color: var(--tomato-ink); }
+.m-kosher.k-dairy { color: var(--ink); background: var(--mustard-soft); }
+.m-kosher.k-parve { color: var(--zaatar-ink); }
+.m-title { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; line-height: 1.25; text-wrap: balance; }
+.dishes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.dish { display: flex; flex-direction: column; gap: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--paper-edge); }
+.dish:last-child { border-bottom: none; padding-bottom: 0; }
+.d-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.d-role { font-size: 0.74rem; font-weight: 700; color: var(--zaatar-ink); }
+.d-name { font-weight: 600; overflow-wrap: anywhere; }
+.d-meta { font-size: 0.8rem; color: var(--muted); }
+.dish.has-recipe .d-meta { color: var(--zaatar-ink); font-weight: 600; }
+.d-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.mini-btn {
+  padding: 3px 10px; border-radius: 8px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+  font-size: 0.82rem; font-weight: 600; line-height: 1.4;
+}
+.mini-btn:hover { background: var(--zaatar-soft); }
+.mini-btn.go { background: var(--tomato-ink); border-color: var(--tomato-ink); color: var(--on-accent); }
+.mini-btn.go:hover { filter: brightness(1.08); }
+.mini-btn.quiet { border-color: var(--paper-edge); color: var(--muted); }
+.mini-btn.wide { align-self: stretch; padding: 7px 12px; font-size: 0.9rem; }
+.mini-btn:disabled { opacity: .55; cursor: wait; }
+.board-note { margin: 0; font-family: var(--f-hand); font-size: 0.85rem; color: var(--muted); }
+.board.stale { opacity: .6; }
+.board.stale .board-note { display: none; }
 
 /* ---------- the fridge: labels, magnets, notebook ---------- */
 .fridge {
