@@ -1,0 +1,87 @@
+{
+  "_comment": "Common kitchen substitutes. factor = amount of the substitute per 1 unit of the original (null = see ratio text). contains = profile entries it would break.",
+  "מרגרינה": [
+    {"use": "שמן קנולה או חמניות", "factor": 0.75, "ratio": "¾ מהכמות", "contains": [], "note": "באפייה: העוגה יוצאת לחה יותר"},
+    {"use": "חמאה", "factor": 1, "ratio": "1:1", "contains": ["חלב"], "note": "רק במנה חלבית"},
+    {"use": "שמן קוקוס מוצק", "factor": 1, "ratio": "1:1", "contains": [], "note": "טעם קוקוס עדין"}
+  ],
+  "חמאה": [
+    {"use": "שמן קנולה או חמניות", "factor": 0.75, "ratio": "¾ מהכמות", "contains": [], "note": ""},
+    {"use": "שמן קוקוס מוצק", "factor": 1, "ratio": "1:1", "contains": [], "note": ""},
+    {"use": "מרגרינה", "factor": 1, "ratio": "1:1", "contains": ["מרגרינה"], "note": ""}
+  ],
+  "ביצה": [
+    {"use": "כף זרעי פשתן טחונים + 3 כפות מים (להשרות 5 דקות)", "factor": null, "ratio": "לכל ביצה", "contains": [], "note": "מתאים לאפייה"},
+    {"use": "3 כפות אקוופאבה (הנוזל מקופסת חומוס)", "factor": null, "ratio": "לכל ביצה", "contains": [], "note": "מתאים גם להקצפה"},
+    {"use": "רבע כוס רסק תפוחים", "factor": null, "ratio": "לכל ביצה", "contains": [], "note": "רק לאפייה מתוקה"}
+  ],
+  "חלב": [
+    {"use": "משקה שיבולת שועל", "factor": 1, "ratio": "1:1", "contains": ["גלוטן"], "note": ""},
+    {"use": "משקה סויה", "factor": 1, "ratio": "1:1", "contains": ["סויה"], "note": ""},
+    {"use": "משקה שקדים", "factor": 1, "ratio": "1:1", "contains": ["אגוזים", "שקדים"], "note": ""}
+  ],
+  "שמנת מתוקה": [
+    {"use": "קרם קוקוס", "factor": 1, "ratio": "1:1", "contains": [], "note": "מקציפים קר"},
+    {"use": "שמנת צמחית", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ],
+  "שמנת חמוצה": [
+    {"use": "יוגורט עזים או בקר", "factor": 1, "ratio": "1:1", "contains": ["חלב"], "note": ""},
+    {"use": "יוגורט סויה", "factor": 1, "ratio": "1:1", "contains": ["סויה"], "note": ""}
+  ],
+  "יוגורט": [
+    {"use": "שמנת חמוצה", "factor": 1, "ratio": "1:1", "contains": ["חלב"], "note": ""},
+    {"use": "יוגורט סויה", "factor": 1, "ratio": "1:1", "contains": ["סויה"], "note": ""}
+  ],
+  "קמח": [
+    {"use": "קמח כוסמין", "factor": 1, "ratio": "1:1", "contains": ["גלוטן"], "note": ""},
+    {"use": "קמח ללא גלוטן (תערובת מוכנה)", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ],
+  "פירורי לחם": [
+    {"use": "קורנפלקס טחון", "factor": 1, "ratio": "1:1", "contains": [], "note": "יוצא פריך יותר"},
+    {"use": "שיבולת שועל טחונה", "factor": 1, "ratio": "1:1", "contains": ["גלוטן"], "note": ""}
+  ],
+  "סוכר": [
+    {"use": "דבש", "factor": 0.75, "ratio": "¾ מהכמות", "contains": [], "note": "להפחית מעט נוזלים"},
+    {"use": "סילאן", "factor": 0.75, "ratio": "¾ מהכמות", "contains": [], "note": ""}
+  ],
+  "רוטב סויה": [
+    {"use": "טמארי", "factor": 1, "ratio": "1:1", "contains": ["סויה"], "note": "בדרך כלל ללא גלוטן"},
+    {"use": "רוטב קוקוס אמינוס", "factor": 1, "ratio": "1:1", "contains": [], "note": "מתוק יותר"}
+  ],
+  "שמן זית": [
+    {"use": "שמן קנולה", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ],
+  "פלפל אדום": [
+    {"use": "פלפל צהוב או כתום", "factor": 1, "ratio": "1:1", "contains": [], "note": ""},
+    {"use": "עוד עגבנייה", "factor": null, "ratio": "עגבנייה אחת לכל פלפל", "contains": [], "note": "פחות מתיקות"}
+  ],
+  "פטרוזיליה": [
+    {"use": "שמיר", "factor": 1, "ratio": "1:1", "contains": [], "note": ""},
+    {"use": "כוסברה", "factor": 1, "ratio": "1:1", "contains": ["כוסברה"], "note": "טעם חזק יותר"}
+  ],
+  "כוסברה": [
+    {"use": "פטרוזיליה", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ],
+  "בצל ירוק": [
+    {"use": "עירית", "factor": 1, "ratio": "1:1", "contains": [], "note": ""},
+    {"use": "בצל רגיל קצוץ דק", "factor": 0.5, "ratio": "חצי מהכמות", "contains": [], "note": ""}
+  ],
+  "מיץ לימון": [
+    {"use": "חומץ תפוחים", "factor": 0.5, "ratio": "חצי מהכמות", "contains": [], "note": ""},
+    {"use": "מיץ ליים", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ],
+  "אבקת אפייה": [
+    {"use": "רבע כפית סודה לשתייה + חצי כפית מיץ לימון", "factor": null, "ratio": "לכל כפית אבקת אפייה", "contains": [], "note": ""}
+  ],
+  "יין לבן": [
+    {"use": "ציר ירקות + כפית חומץ", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ],
+  "טחינה": [
+    {"use": "חמאת בוטנים", "factor": 1, "ratio": "1:1", "contains": ["בוטנים"], "note": "טעם אחר"},
+    {"use": "יוגורט עם מעט שמן זית", "factor": 1, "ratio": "1:1", "contains": ["חלב"], "note": "לרטבים בלבד"}
+  ],
+  "גבינה צהובה": [
+    {"use": "מוצרלה", "factor": 1, "ratio": "1:1", "contains": ["חלב"], "note": ""},
+    {"use": "גבינה צהובה טבעונית", "factor": 1, "ratio": "1:1", "contains": [], "note": ""}
+  ]
+}

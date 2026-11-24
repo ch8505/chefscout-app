@@ -5,7 +5,7 @@
 .venv/
 
 # runtime data (profiles, conversations, caches)
-data/
+/data/
 
 # python
 __pycache__/
