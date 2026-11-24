@@ -109,7 +109,7 @@ def test_read_then_show_builds_cards_and_hides_blocked(settings):
     urls = list(pages.PAGES)
     client = FakeClient(
         [
-            tool_msg(("read_recipes", {"urls": urls})),
+            tool_msg(("read_recipes", {"urls": urls}), searched=urls),
             tool_msg(("show_recipes", {"recipes": [{"id": "R1"}, {"id": "R2", "note": "חסר פלפל"}]})),
             text_msg("הנה שלושה רעיונות"),
         ]
@@ -129,7 +129,10 @@ def test_show_recipes_refuses_blocked_and_unknown_ids(settings):
     fetcher = pages.FakeFetcher({"https://site-c.co.il/tuna-pasta": pages.TUNA_PASTA})
     client = FakeClient(
         [
-            tool_msg(("read_recipes", {"urls": ["https://site-c.co.il/tuna-pasta"]})),
+            tool_msg(
+                ("read_recipes", {"urls": ["https://site-c.co.il/tuna-pasta"]}),
+                searched=["https://site-c.co.il/tuna-pasta"],
+            ),
             tool_msg(
                 ("show_recipes", {"recipes": [{"id": "R1"}]}), ("show_recipes", {"recipes": [{"id": "R9"}]})
             ),
@@ -147,7 +150,10 @@ def test_show_recipes_refuses_blocked_and_unknown_ids(settings):
 def test_answer_keeps_real_links_and_drops_invented_ones(settings):
     client = FakeClient(
         [
-            tool_msg(("read_recipes", {"urls": ["https://site-a.co.il/shakshuka"]})),
+            tool_msg(
+                ("read_recipes", {"urls": ["https://site-a.co.il/shakshuka"]}),
+                searched=["https://site-a.co.il/shakshuka"],
+            ),
             text_msg("נסי [שקשוקה](https://site-a.co.il/shakshuka) או https://made-up.example/recipe"),
         ]
     )

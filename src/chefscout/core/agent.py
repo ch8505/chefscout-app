@@ -25,6 +25,8 @@ log = logging.getLogger(__name__)
 ContextProvider = Callable[[ToolContext, str], str | None]
 # An output filter may rewrite the final answer (e.g. remove links that did not come from a tool).
 OutputFilter = Callable[[ToolContext, str], str]
+# A block observer sees every content block the model returns (e.g. web search results).
+BlockObserver = Callable[[ToolContext, dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,7 @@ class Agent:
         context_providers: Sequence[ContextProvider] = (),
         server_tools: Sequence[dict[str, Any]] = (),
         output_filters: Sequence[OutputFilter] = (),
+        block_observers: Sequence[BlockObserver] = (),
         services: dict[str, Any] | None = None,
     ):
         self.client = client
@@ -75,6 +78,7 @@ class Agent:
             max_iterations=config.max_iterations,
             system=[{"type": "text", "text": config.system_prompt}],
             server_tools=list(server_tools),
+            block_observers=list(block_observers),
         )
 
     def send(

@@ -35,7 +35,8 @@ def test_chat_streams_progress_answer_cards_and_done(settings):
         settings,
         [
             tool_msg(
-                ("read_recipes", {"urls": ["https://site-a.co.il/shakshuka", "https://site-b.co.il/salad"]})
+                ("read_recipes", {"urls": ["https://site-a.co.il/shakshuka", "https://site-b.co.il/salad"]}),
+                searched=["https://site-a.co.il/shakshuka", "https://site-b.co.il/salad"],
             ),
             tool_msg(("show_recipes", {"recipes": [{"id": "R1", "note": "חסר פלפל אדום"}, {"id": "R2"}]})),
             text_msg("הנה שני רעיונות"),
@@ -45,7 +46,8 @@ def test_chat_streams_progress_answer_cards_and_done(settings):
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
     events = parse_sse(r.text)
     kinds = [k for k, _ in events]
-    assert kinds == ["start", "progress", "progress", "answer", "recipes", "done"]
+    # web search, read, show: one progress line each
+    assert kinds == ["start", "progress", "progress", "progress", "answer", "recipes", "done"]
     cards = dict(events)["recipes"]
     assert {c["title"] for c in cards} == {"שקשוקה ביתית קלה", "סלט ישראלי קצוץ"}
     assert any(c["note"] == "חסר פלפל אדום" for c in cards) and all(

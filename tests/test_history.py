@@ -99,7 +99,10 @@ def _agent(settings, client):
 def test_shown_recipes_are_recorded_as_soft_hints(settings):
     client = FakeClient(
         [
-            tool_msg(("read_recipes", {"urls": ["https://site-a.co.il/shakshuka"]})),
+            tool_msg(
+                ("read_recipes", {"urls": ["https://site-a.co.il/shakshuka"]}),
+                searched=["https://site-a.co.il/shakshuka"],
+            ),
             tool_msg(("show_recipes", {"recipes": [{"id": "R1"}]})),
             text_msg("הנה"),
         ]
@@ -130,7 +133,10 @@ def test_rejecting_a_dish_marks_it_in_the_plan_and_blocks_it(settings):
 def test_saving_a_recipe_and_bad_targets(settings):
     client = FakeClient(
         [
-            tool_msg(("read_recipes", {"urls": ["https://site-b.co.il/salad"]})),
+            tool_msg(
+                ("read_recipes", {"urls": ["https://site-b.co.il/salad"]}),
+                searched=["https://site-b.co.il/salad"],
+            ),
             tool_msg(
                 ("record_feedback", {"feedback": "saved", "target": "r1"}),
                 ("record_feedback", {"feedback": "saved", "target": "M9.D9"}),
