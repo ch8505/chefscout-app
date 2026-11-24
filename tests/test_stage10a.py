@@ -226,3 +226,24 @@ def test_more_cards_without_a_model_go_into_the_transcript(settings):
     api.post(f"/api/conversations/{conv}/more", json={"dish_id": "D1"})
     entries = api.get(f"/api/conversations/{conv}/transcript").json()
     assert entries[-1]["role"] == "cards" and [c["id"] for c in entries[-1]["cards"]] == ["R2"]
+
+
+def test_singular_and_plural_with_a_final_he_match_both_ways():
+    from chefscout.recipes.matching import missing_lines
+
+    assert missing_lines(["1 ביצה", "2 עגבניות", "3 גבינות"], ["ביצים", "עגבנייה", "גבינה"]) == []
+    assert missing_lines(["4 ביצים"], ["ביצה"]) == []
+
+
+def test_a_kitchen_rule_ingredient_is_not_listed_again_as_missing():
+    from chefscout.memory.profile import Profile
+    from chefscout.recipes.matching import check_recipe
+    from chefscout.recipes.models import CheckedRecipe, Recipe
+    from chefscout.server.schemas import RecipeCard
+
+    lines = ["100 גרם מרגרינה", "1 חבילת בצק עלים"]
+    check = check_recipe(lines, Profile(kitchen_rules=["בלי מרגרינה"]), [])
+    recipe = Recipe(title="בורקס", url="https://x.co.il/b", site="x.co.il", ingredients=lines)
+    card = RecipeCard.from_checked(CheckedRecipe(id="R1", recipe=recipe, check=check), pantry=[])
+    assert card.missing == ["1 חבילת בצק עלים"] and card.needs_substitute[0].ingredient == "100 גרם מרגרינה"
+    assert ingredient_name("1 חבילת בצק עלים") == "בצק עלים"

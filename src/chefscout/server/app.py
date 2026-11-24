@@ -72,7 +72,7 @@ def create_app(
         "plans": stores.plans,
         "history": stores.history,
     }
-    app = FastAPI(title="ChefScout", version=__version__)
+    app = FastAPI(title="Dishly", version=__version__)
     agent_holder: dict[str, Agent] = {}
     agent_lock = threading.Lock()
 

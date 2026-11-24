@@ -12,7 +12,7 @@ from chefscout.server.app import WEB_DIR, create_app
 def test_index_and_static_files_are_served(settings):
     api = TestClient(create_app(settings))
     page = api.get("/")
-    assert page.status_code == 200 and 'dir="rtl"' in page.text and "ChefScout" in page.text
+    assert page.status_code == 200 and 'dir="rtl"' in page.text and "Dishly" in page.text
     assert api.get("/static/app.js").status_code == 200
     assert api.get("/static/styles.css").status_code == 200
 

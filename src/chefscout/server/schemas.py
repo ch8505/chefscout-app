@@ -89,6 +89,8 @@ class RecipeCard(BaseModel):
         """pantry: today's pantry, to recompute what is missing (it may have changed since reading)."""
         r, c = item.recipe, item.check
         missing = missing_lines(r.ingredients, pantry) if pantry is not None else c.missing
+        rule_lines = {h.ingredient for h in c.needs_substitute}
+        missing = [m for m in missing if m not in rule_lines]  # shown once, under the kitchen rule
         dish = plan.dish(item.dish_id) if plan and item.dish_id else None
         return cls(
             id=item.id,
