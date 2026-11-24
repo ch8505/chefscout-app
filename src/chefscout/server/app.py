@@ -26,6 +26,8 @@ from chefscout.server.schemas import (
     ChatRequest,
     CookedRequest,
     FeedbackRequest,
+    MoreRequest,
+    MoreResult,
     PantryRequest,
     PlanView,
     PreferenceRequest,
@@ -34,6 +36,7 @@ from chefscout.server.schemas import (
     SavedItem,
 )
 from chefscout.tools.feedback_tools import record_feedback
+from chefscout.tools.recipe_tools import reveal_candidates
 
 log = logging.getLogger(__name__)
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -140,6 +143,21 @@ def create_app(
                 except ToolError as e:
                     raise HTTPException(status_code=400, detail=str(e)) from e
         return current_plan(conv)
+
+    @app.post("/api/conversations/{conversation_id}/more", response_model=MoreResult)
+    def more(conversation_id: str, req: MoreRequest) -> MoreResult:
+        """More recipes for one dish from those already read: no model call. Empty = a search is needed."""
+        conv = conv_id(conversation_id)
+        ctx = ToolContext(user_id=user, conversation_id=conv, services=services)
+        with locked(stores.conversations.path(user, conv)):
+            if not requests.first_time(user, conv, req.request_id):
+                return MoreResult(cards=[], needs_search=False, duplicate=True)
+            try:
+                shown = reveal_candidates(ctx, req.dish_id)
+            except ToolError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
+        plan = stores.plans.load(user, conv)
+        return MoreResult(cards=[RecipeCard.from_checked(s, plan) for s in shown], needs_search=not shown)
 
     @app.get("/api/history/saved", response_model=list[SavedItem])
     def saved() -> list[SavedItem]:

@@ -115,7 +115,8 @@ def stream_turn(
                 text = message + action_note(action)
                 result = agent.send(user_id=user_id, text=text, conversation_id=conv, emit=emit)
             plan = agent.services["plans"].load(user_id, conv)
-            if PLAN_TOOLS & set(result.tools_used):
+            # A specific-recipe request goes straight to recipe cards: no ideas list for it.
+            if PLAN_TOOLS & set(result.tools_used) and plan is not None and plan.intent != "recipe":
                 events.put(("ideas", plan_view(agent, user_id, conv)))
             if "show_recipes" in result.tools_used:
                 shown = agent.services["recipes"].last_shown(user_id, conv)

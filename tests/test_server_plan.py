@@ -128,3 +128,57 @@ def test_recipe_cards_carry_the_dish_role(settings):
     conv = dict(events)["start"]["conversation_id"]
     dish = api.get(f"/api/conversations/{conv}/plan").json()["ideas"][0]
     assert dish["recipe"]["url"] == url  # the plan view shows the found recipe after a refresh
+
+
+# ---- chat cleanup: one channel per content -----------------------------------------------------
+
+
+def test_ideas_turn_keeps_only_the_models_opening_line(settings):
+    long_answer = "הכנתי לך שתי אפשרויות. איזו?\n\n**1. ארוחת עוף**\n- עוף בתנור\n- אורז"
+    api, _ = make(settings, [tool_msg(("propose_ideas", MEALS)), text_msg(long_answer)])
+    events = dict(chat(api, "מה לבשל?"))
+    assert events["answer"]["text"] == "הכנתי לך שתי אפשרויות. איזו?"  # the list is shown by the app
+
+
+def test_a_specific_recipe_request_shows_recipe_cards_without_an_ideas_list(settings):
+    urls = ["https://site-a.co.il/shakshuka", "https://site-b.co.il/salad"]
+    egg = {"intent": "recipe", "ideas": [d("main", "שקשוקה", "ביצים", query="מתכון שקשוקה")]}
+    api, _ = make(
+        settings,
+        [
+            tool_msg(("propose_ideas", egg)),
+            tool_msg(("read_recipes", {"urls": urls, "dish_id": "D1"}), searched=urls),
+            tool_msg(
+                ("show_recipes", {"recipes": [{"id": "R1", "dish_id": "D1"}, {"id": "R2", "dish_id": "D1"}]})
+            ),
+            text_msg("הנה שתי שקשוקות."),
+        ],
+    )
+    events = chat(api, "מתכון לשקשוקה")
+    kinds = [k for k, _ in events]
+    assert "ideas" not in kinds and len(dict(events)["recipes"]) == 2
+
+
+def test_more_options_without_a_model_call_then_asks_for_a_search(settings):
+    urls = ["https://site-a.co.il/shakshuka", "https://site-b.co.il/salad"]
+    egg = {"intent": "recipe", "ideas": [d("main", "שקשוקה", "ביצים")]}
+    api, client = make(
+        settings,
+        [
+            tool_msg(("propose_ideas", egg)),
+            tool_msg(("read_recipes", {"urls": urls, "dish_id": "D1"}), searched=urls),
+            tool_msg(("show_recipes", {"recipes": [{"id": "R1", "dish_id": "D1"}]})),
+            text_msg("הנה"),
+        ],
+    )
+    conv = dict(chat(api, "מתכון לשקשוקה"))["start"]["conversation_id"]
+    calls = len(client.calls)
+    first = api.post(f"/api/conversations/{conv}/more", json={"dish_id": "D1", "request_id": "m1"}).json()
+    assert [c["id"] for c in first["cards"]] == ["R2"] and first["needs_search"] is False
+    again = api.post(f"/api/conversations/{conv}/more", json={"dish_id": "D1", "request_id": "m1"}).json()
+    assert again["duplicate"] is True and again["cards"] == []
+    none_left = api.post(f"/api/conversations/{conv}/more", json={"dish_id": "D1"}).json()
+    assert none_left == {"cards": [], "needs_search": True, "duplicate": False}
+    assert len(client.calls) == calls  # no model call for any of these
+    bad = api.post(f"/api/conversations/{conv}/more", json={"dish_id": "M9.D9"})
+    assert bad.status_code == 400
