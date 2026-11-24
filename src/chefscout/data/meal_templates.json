@@ -1,0 +1,7 @@
+{
+  "breakfast": {"roles": ["main", "salad"], "optional": ["side"]},
+  "lunch": {"roles": ["main", "side", "salad"], "optional": []},
+  "dinner": {"roles": ["main", "salad"], "optional": ["side"]},
+  "shabbat": {"roles": ["main", "side", "salad"], "optional": ["soup", "dessert"]},
+  "any": {"roles": ["main", "side", "salad"], "optional": []}
+}
