@@ -32,6 +32,8 @@ Kosher = Literal["meat", "dairy", "parve"]
 MealTime = Literal["breakfast", "lunch", "dinner", "shabbat", "any"]
 DishStatus = Literal["proposed", "selected", "replaced", "rejected"]
 SearchStatus = Literal["none", "found", "not_found"]
+# user = "swap it" (not a dislike), rejected = "I don't like it", not_found = no real recipe was found
+ReplaceReason = Literal["user", "rejected", "not_found"]
 
 # Allowed status changes. "replaced" and "rejected" are final.
 TRANSITIONS: dict[str, set[str]] = {
@@ -85,6 +87,7 @@ class Dish(DishDraft):
     id: str
     status: DishStatus = "proposed"
     replaces: str | None = None
+    reason: ReplaceReason | None = None  # why this dish replaced the one before it
     recipe_id: str | None = None  # the recipe shown now for this dish
     candidates: list[str] = Field(default_factory=list)  # good recipes read for it ("more options")
     shown_recipes: list[str] = Field(default_factory=list)
@@ -274,11 +277,14 @@ class PlanStore:
         dish_id: str,
         draft: DishDraft,
         status: Literal["replaced", "rejected"] = "replaced",
+        reason: ReplaceReason = "user",
     ) -> Dish:
         """Swap one dish for a new one. Every other dish, id and recipe stays as it is.
 
         The new dish keeps the old one's "selected" status, so only it needs a new search.
         """
+        if reason == "rejected":
+            status = "rejected"
         path = self.path(user_id, conversation_id)
         with locked(path):
             plan = self._require(user_id, conversation_id)
@@ -288,7 +294,7 @@ class PlanStore:
             if not old.active:
                 raise ToolError(f"{dish_id} is already {old.status}")
             meal = plan.meal_of(dish_id)
-            new = Dish(id=_next_dish_id(plan, meal), replaces=old.id, **draft.model_dump())
+            new = Dish(id=_next_dish_id(plan, meal), replaces=old.id, reason=reason, **draft.model_dump())
             if old.status == "selected":
                 new.status = "selected"
             self._move(old, status)

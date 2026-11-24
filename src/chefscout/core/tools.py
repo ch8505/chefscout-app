@@ -27,6 +27,8 @@ class ToolContext:
     user_id: str
     conversation_id: str
     services: dict[str, Any] = field(default_factory=dict)  # stores, providers, settings
+    # Scratch state for this one user turn (e.g. retry counts). A new turn starts empty.
+    turn: dict[str, Any] = field(default_factory=dict)
 
 
 Handler = Callable[[dict[str, Any], ToolContext], str]
