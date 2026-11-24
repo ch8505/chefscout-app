@@ -18,15 +18,22 @@ from chefscout.config import Settings, get_settings
 from chefscout.core.agent import Agent
 from chefscout.core.errors import InvalidIdError, ToolError
 from chefscout.core.history import new_conversation_id, safe_id
+from chefscout.core.tools import ToolContext
+from chefscout.memory.storage import locked
 from chefscout.server.chat import stream_turn
+from chefscout.server.idempotency import RequestLog
 from chefscout.server.schemas import (
     ChatRequest,
     CookedRequest,
+    FeedbackRequest,
     PantryRequest,
+    PlanView,
     PreferenceRequest,
     ProfileView,
     RecipeCard,
+    SavedItem,
 )
+from chefscout.tools.feedback_tools import record_feedback
 
 log = logging.getLogger(__name__)
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -48,6 +55,14 @@ def create_app(
     stores = build_stores(settings)
     factory = agent_factory or (lambda s: build_agent(settings, stores=s))
     user = settings.default_user_id
+    requests = RequestLog(settings.data_dir)
+    # What the feedback endpoint needs from the stores (the same objects the agent uses).
+    services = {
+        "settings": settings,
+        "recipes": stores.recipes,
+        "plans": stores.plans,
+        "history": stores.history,
+    }
     app = FastAPI(title="ChefScout", version=__version__)
     agent_holder: dict[str, Agent] = {}
     agent_lock = threading.Lock()
@@ -83,15 +98,55 @@ def create_app(
     def chat(req: ChatRequest) -> StreamingResponse:
         conv = conv_id(req.conversation_id) if req.conversation_id else None
         return StreamingResponse(
-            stream_turn(get_agent=get_agent, user_id=user, message=req.message.strip(), conversation_id=conv),
+            stream_turn(
+                get_agent=get_agent,
+                user_id=user,
+                message=req.message.strip(),
+                conversation_id=conv,
+                action=req.action,
+                request_id=req.request_id,
+                requests=requests,
+            ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @app.get("/api/conversations/{conversation_id}/recipes", response_model=list[RecipeCard])
     def last_recipes(conversation_id: str) -> list[RecipeCard]:
-        shown = stores.recipes.last_shown(user, conv_id(conversation_id))
-        return [RecipeCard.from_checked(s) for s in shown]
+        conv = conv_id(conversation_id)
+        plan = stores.plans.load(user, conv)
+        return [RecipeCard.from_checked(s, plan) for s in stores.recipes.last_shown(user, conv)]
+
+    # ---- ideas (the plan of this conversation) ------------------------------------------------
+    def current_plan(conv: str) -> PlanView | None:
+        plan = stores.plans.load(user, conv)
+        if plan is None:
+            return None
+        return PlanView.build(plan, lambda rid: stores.recipes.get(user, conv, rid))
+
+    @app.get("/api/conversations/{conversation_id}/plan", response_model=PlanView | None)
+    def get_plan(conversation_id: str) -> PlanView | None:
+        return current_plan(conv_id(conversation_id))
+
+    @app.post("/api/conversations/{conversation_id}/feedback", response_model=PlanView | None)
+    def feedback(conversation_id: str, req: FeedbackRequest) -> PlanView | None:
+        """Save or reject an idea or a recipe, straight from a button: no model call, no cost."""
+        conv = conv_id(conversation_id)
+        ctx = ToolContext(user_id=user, conversation_id=conv, services=services)
+        with locked(stores.conversations.path(user, conv)):
+            if requests.first_time(user, conv, req.request_id):
+                try:
+                    record_feedback({"feedback": req.feedback, "target": req.target}, ctx)
+                except ToolError as e:
+                    raise HTTPException(status_code=400, detail=str(e)) from e
+        return current_plan(conv)
+
+    @app.get("/api/history/saved", response_model=list[SavedItem])
+    def saved() -> list[SavedItem]:
+        return [
+            SavedItem(title=e.title, url=e.url, kind=e.kind, at=e.at.isoformat())
+            for e in stores.history.saved(user)
+        ]
 
     # ---- pantry (this conversation) --------------------------------------------------------
     @app.get("/api/conversations/{conversation_id}/pantry")
