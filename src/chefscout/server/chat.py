@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 from chefscout.core.agent import Agent
-from chefscout.core.errors import ChefScoutError, MissingApiKeyError
+from chefscout.core.errors import MissingApiKeyError
 from chefscout.core.events import AgentEvent
 from chefscout.core.history import new_conversation_id
 from chefscout.memory.storage import locked
@@ -172,7 +172,7 @@ def stream_turn(
             if plan is not None and PLAN_TOOLS & set(result.tools_used):
                 events.put(("plan", plan_view(agent, user_id, conv)))
             record(entry)
-        except (ChefScoutError, Exception) as exc:
+        except Exception as exc:  # any failure becomes a friendly message, never a broken stream
             log.exception("chat turn failed")
             events.put(("error", {"message": friendly_error(exc)}))
             record({"role": "error", "text": friendly_error(exc)})

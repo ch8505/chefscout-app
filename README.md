@@ -1,10 +1,11 @@
-# ChefScout
+# Dishly · הרעיון הבא שלך במטבח
 
-A personal cooking agent in Hebrew. Ask for a dinner idea and get up to three **real** recipes from the web, with
+A personal cooking agent in Hebrew (the code package is still called `chefscout`). Ask for a dinner idea and get up to three **real** recipes from the web, with
 links, filtered by your allergies and the foods you never eat, matched against what you have at home, with
 substitutes (and amounts) for anything missing or against your kitchen rules.
 
-> Status: MVP (stages 0-6 done). See [PLAN.md](PLAN.md) for the plan and progress.
+> Status: stages 0-7, 9 and 10 done (stage 10: one answer shape per turn and the Dishly design). See
+> [PLAN.md](PLAN.md) for the plan and progress.
 
 ## Setup (Windows, PowerShell)
 
@@ -32,7 +33,8 @@ python -m chefscout              # from the project folder, then open http://127
    - a whole meal: 2 different meals;
    - dish ideas, or what to make from the pantry: 3 dishes;
    - something vague: 3 directions;
-   - one specific dish: search right away.
+   - one specific dish the user named: search right away (the code checks that the name is the user's;
+     a kind of dish, like "a savory pastry", gets 3 different ideas instead).
 2. `propose_ideas` saves the ideas with stable ids (M1, M1.D2). It runs no web search and adds no links. The code checks every idea:
    - the profile;
    - kashrut (a meal never mixes meat and dairy);
@@ -47,7 +49,19 @@ python -m chefscout              # from the project folder, then open http://127
    - lists what is missing compared with the pantry;
    - marks a recipe that takes much longer than asked. Such a recipe is shown only as an alternative.
 6. `show_recipes` shows the cards. They are built from the page data, never from the model's text. Any link that did not come from a page that was read is removed from the answer.
-7. `suggest_substitute` gives verified substitutes with scaled amounts, filtered by the profile.
+7. `suggest_substitute` gives verified substitutes with scaled amounts, filtered by the profile. They go in the
+   card's note.
+8. Each turn shows one thing: an ideas list, recipe cards, or text. Never two of them.
+
+On the page:
+- Ideas are a list in the chat; a dish name is a link that brings its recipe.
+- A card's "missing" list has **I have it** (adds to today's pantry, every card updates, no model call) and
+  **what instead?** (asks the agent).
+- **Another recipe**: one more for the same dish (from what was already read when possible, no model call),
+  or **another version** ("בטיבול אחר"): the same dish, a new search.
+- **My kitchen** holds what rarely changes (the profile, the notebook of cooked recipes). **At home today** sits
+  above the message box.
+- A page refresh restores the whole chat.
 
 Memory:
 - The **profile** is kept for all conversations: allergies, never-eat foods, diet, kitchen rules, likes, and cooked recipes with a rating.
@@ -68,8 +82,8 @@ src/chefscout/
   recipes/       plan (meals, dishes, ids), validate (the gates), kosher, timing,
                  fetch (safe), jsonld, matching (filters), substitutions, store, link guard
   tools/         the tools the model can call
-  server/        FastAPI: SSE chat (ideas + recipe cards), plan, feedback, profile, pantry, cooked;
-                 a request id makes each button press run once
+  server/        FastAPI: SSE chat (ideas or recipe cards), plan, transcript, feedback, more, have,
+                 profile, pantry, cooked; a request id makes each button press run once
   web/           the page (HTML/CSS/JS, RTL)
   data/          food terms and substitution tables
   bootstrap.py   wires everything together; new features plug in here
