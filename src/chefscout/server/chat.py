@@ -32,6 +32,7 @@ PROGRESS_LABELS = {
     "update_pantry": "מעדכן מה יש בבית…",
     "save_cooked_recipe": "שומר שהכנת…",
     "get_cooked_recipes": "בודק מה הכנת בעבר…",
+    "record_feedback": "שומר את מה שאמרת…",
 }
 
 _DONE = object()

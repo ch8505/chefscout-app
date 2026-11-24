@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # Optional two-letter country for localized results. Empty by default: IL is not supported by the API.
     web_search_country: str | None = None
 
+    # Suggestion history. Only an explicit rejection blocks, and only for a while.
+    rejected_block_days: int = Field(default=60, ge=1, le=3650)
+    # Soft hint: avoid repeating something cooked this recently, unless the user asks for it again.
+    cooked_soft_days: int = Field(default=14, ge=0, le=365)
+    recent_suggestions_hint: int = Field(default=15, ge=0, le=50)
+
     host: str = "127.0.0.1"
     port: int = Field(default=8000, ge=1, le=65535)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
