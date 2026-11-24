@@ -20,7 +20,7 @@ _UNICODE_FRACTIONS = {"½": "1/2", "¼": "1/4", "¾": "3/4", "⅓": "1/3", "⅔"
 # A plain fraction must be tried first, or "1/2" is read as "1".
 _AMOUNT = re.compile(r"^\s*(\d+/\d+|\d+(?:[.,]\d+)?(?:\s+\d+/\d+)?)\s*(.*)$")
 # Only these words count as a unit; anything else is the ingredient name, not part of the amount.
-_UNITS = {
+UNITS = {
     "גרם",
     "ג",
     "ג'",
@@ -99,7 +99,7 @@ def parse_amount(text: str) -> tuple[Fraction, str] | None:
         return None
     number = sum((Fraction(part.replace(",", ".")) for part in m.group(1).split()), Fraction(0))
     rest = m.group(2).split()
-    unit = rest[0] if rest and rest[0].lower() in _UNITS else ""
+    unit = rest[0] if rest and rest[0].lower() in UNITS else ""
     return number, unit
 
 

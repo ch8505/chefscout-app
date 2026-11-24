@@ -135,6 +135,54 @@ def same_food(a: str, b: str) -> bool:
 _SAME_FOOD_GROUPS = tuple(" ".join(_tokens(k)) for k in ("עוף", "דגים", "פירות ים"))
 
 
+_NAME_STOPWORDS = {_norm(w) for w in ("עם", "של", "או", "מתכון", "and", "with")}
+
+
+def named_in(text: str, name: str) -> bool:
+    """True if a dish name comes from text: more than half of its words appear there.
+
+    "עוגת שוקולד" in "מתכון לעוגת שוקולד" -> True; "בורקס גבינה" in "מתכון למאפה מלוח" -> False;
+    "עוף בתנור" in "משהו עם עוף" -> False (that is a kind of dish, not a dish the user named).
+    """
+    words = [w for w in _tokens(name) if len(w) > 1 and w not in _NAME_STOPWORDS]
+    if not words:
+        return True
+    hits = sum(mentions(text, w) for w in words)
+    return hits * 2 > len(words)
+
+
+# Words in an ingredient line that describe it but are not the food ("2 בצלים גדולים, קצוצים").
+_DESCRIPTORS = {
+    _norm(w)
+    for w in (  # noqa: SIM905 (one readable list of Hebrew words)
+        "גדול גדולה גדולים גדולות קטן קטנה קטנים קטנות בינוני בינונית בינוניים בינוניות "
+        "טרי טרייה טריה טריים טריות קצוץ קצוצה קצוצים קצוצות פרוס פרוסה פרוסים פרוסות "
+        "מגורר מגוררת מגוררים מגוררות כתוש כתושה כתושים כתושות שלם שלמה שלמים שלמות "
+        "חתוך חתוכה חתוכים מרוסק מרוסקת מרוסקים מומס מומסת רך רכה יחידה יחידות קורט קמצוץ "
+        "חופן שן שיני לפי הטעם כ- כ בערך"
+    ).split()
+}
+
+
+def ingredient_name(line: str) -> str:
+    """The food in an ingredient line, for the pantry: "2 בצלים גדולים, קצוצים" -> "בצלים".
+
+    Amounts, units, notes in brackets and words like "קצוץ" are dropped. If nothing is left,
+    the line itself is returned (trimmed).
+    """
+    from chefscout.recipes.substitutions import UNITS  # here, to avoid a circular import
+
+    units = {_norm(u) for u in UNITS}
+    text = re.sub(r"\([^)]*\)", " ", line or "")
+    text = re.split(r",|\s-\s|\sאו\s", text)[0]
+    kept = [
+        t
+        for t in _WORD.findall(text)
+        if not any(ch.isnumeric() for ch in t) and _norm(t) not in units and _norm(t) not in _DESCRIPTORS
+    ]
+    return " ".join(kept).strip(" -") or " ".join((line or "").split())
+
+
 @lru_cache
 def food_terms() -> dict[str, list[str]]:
     data = json.loads(_TERMS_FILE.read_text(encoding="utf-8"))
@@ -164,6 +212,12 @@ def rule_foods(rule: str) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def missing_lines(ingredients: list[str], pantry: list[str]) -> list[str]:
+    """Ingredient lines that nothing in the pantry (or the staples) covers."""
+    known = [*pantry, *STAPLES]
+    return [line for line in ingredients if not any(mentions(line, item) for item in known)]
+
+
 def _first_hit(ingredients: list[str], terms: list[str]) -> str | None:
     return next((line for line in ingredients if any(mentions(line, t) for t in terms)), None)
 
@@ -180,9 +234,8 @@ def check_recipe(ingredients: list[str], profile: Profile, pantry: list[str]) ->
         for line in ingredients
         if any(mentions(line, food) for food in rule_foods(rule))
     ]
-    known = [*pantry, *STAPLES]
-    have = [line for line in ingredients if any(mentions(line, item) for item in known)]
-    missing = [line for line in ingredients if line not in have]
+    missing = missing_lines(ingredients, pantry)
+    have = [line for line in ingredients if line not in missing]
     return RecipeCheck(
         status="blocked" if blocked else "ok",
         blocked_by=blocked,

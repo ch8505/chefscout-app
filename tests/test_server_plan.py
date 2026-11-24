@@ -27,7 +27,7 @@ def last_user_text(client):
 def test_an_ideas_turn_streams_the_plan_and_no_recipe_cards(settings):
     api, _ = make(settings, [tool_msg(("propose_ideas", MEALS)), text_msg("שתי הצעות. איזו?")])
     events = chat(api, "מה לבשל לצהריים?")
-    assert [k for k, _ in events] == ["start", "progress", "answer", "ideas", "done"]
+    assert [k for k, _ in events] == ["start", "progress", "answer", "ideas", "plan", "done"]
     plan = dict(events)["ideas"]
     assert [m["id"] for m in plan["meals"]] == ["M1", "M2"]
     m1 = plan["meals"][0]
@@ -55,7 +55,8 @@ def test_a_button_adds_a_short_note_for_the_model(settings):
     action = {"type": "get_recipes", "meal_id": "M1"}
     events = chat(api, "תביא מתכונים לארוחה 1", conv, action=action, request_id="req-1")
     assert last_user_text(client).startswith("תביא מתכונים לארוחה 1\n[button] the user chose meal M1")
-    statuses = [x["status"] for x in dict(events)["ideas"]["meals"][0]["dishes"]]
+    assert "ideas" not in dict(events)  # choosing is not a new list: only its state changes
+    statuses = [x["status"] for x in dict(events)["plan"]["meals"][0]["dishes"]]
     assert statuses == ["selected"] * 3
 
 
