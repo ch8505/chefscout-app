@@ -79,6 +79,12 @@ def show_recipes(args: dict[str, Any], ctx: ToolContext) -> str:
             raise ToolError(f"{rid} is blocked by the user's profile and cannot be shown")
         notes[rid] = " ".join(str(p.get("note", "")).split())[:200]
     shown = store.mark_shown(ctx.user_id, ctx.conversation_id, notes)
+    history = ctx.services.get("history")
+    if history is not None:  # "shown" is a soft variety hint, never a block
+        for s in shown:
+            history.record(
+                ctx.user_id, "recipe", s.recipe.title, "shown", url=s.recipe.url, ref=ctx.conversation_id
+            )
     return "shown as cards (title, link, time, missing): " + ", ".join(
         f"{s.id} {s.recipe.title}" for s in shown
     )

@@ -14,13 +14,15 @@ from chefscout.core.agent import Agent, AgentConfig
 from chefscout.core.history import ConversationStore
 from chefscout.core.llm import build_client
 from chefscout.core.tools import ToolRegistry
+from chefscout.memory.history import HistoryStore
 from chefscout.memory.pantry import PantryStore
 from chefscout.memory.profile import ProfileStore
 from chefscout.prompts import SYSTEM_PROMPT
 from chefscout.recipes.fetch import PageFetcher
 from chefscout.recipes.guard import link_guard
+from chefscout.recipes.plan import PlanStore
 from chefscout.recipes.store import RecipeStore
-from chefscout.tools import memory_tools, recipe_tools, substitution_tools
+from chefscout.tools import feedback_tools, memory_tools, recipe_tools, substitution_tools
 
 
 @dataclass(frozen=True)
@@ -29,6 +31,8 @@ class Stores:
     profiles: ProfileStore
     pantry: PantryStore
     recipes: RecipeStore
+    plans: PlanStore
+    history: HistoryStore
 
 
 def build_stores(settings: Settings) -> Stores:
@@ -37,13 +41,16 @@ def build_stores(settings: Settings) -> Stores:
         profiles=ProfileStore(settings.data_dir),
         pantry=PantryStore(settings.data_dir),
         recipes=RecipeStore(settings.data_dir),
+        plans=PlanStore(settings.data_dir),
+        history=HistoryStore(settings.data_dir),
     )
 
 
 def build_registry() -> ToolRegistry:
     """All our tools, in a fixed order (keeps the prompt cache stable)."""
     registry = ToolRegistry()
-    for tool in [*memory_tools.TOOLS, *recipe_tools.TOOLS, *substitution_tools.TOOLS]:
+    tools = [*memory_tools.TOOLS, *recipe_tools.TOOLS, *substitution_tools.TOOLS, *feedback_tools.TOOLS]
+    for tool in tools:
         registry.register(tool)
     return registry
 
@@ -90,6 +97,8 @@ def build_agent(
             "profiles": stores.profiles,
             "pantry": stores.pantry,
             "recipes": stores.recipes,
+            "plans": stores.plans,
+            "history": stores.history,
             "fetcher": fetcher if fetcher is not None else PageFetcher(),
         },
     )
