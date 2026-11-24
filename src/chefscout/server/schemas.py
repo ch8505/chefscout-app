@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from chefscout.memory.profile import CookedRecipe, PreferenceKind, Rating
+from chefscout.recipes.matching import missing_lines
 from chefscout.recipes.models import CheckedRecipe
 from chefscout.recipes.plan import Dish, Plan
 
@@ -82,8 +83,12 @@ class RecipeCard(BaseModel):
     alternative: bool = False
 
     @classmethod
-    def from_checked(cls, item: CheckedRecipe, plan: Plan | None = None) -> RecipeCard:
+    def from_checked(
+        cls, item: CheckedRecipe, plan: Plan | None = None, pantry: list[str] | None = None
+    ) -> RecipeCard:
+        """pantry: today's pantry, to recompute what is missing (it may have changed since reading)."""
         r, c = item.recipe, item.check
+        missing = missing_lines(r.ingredients, pantry) if pantry is not None else c.missing
         dish = plan.dish(item.dish_id) if plan and item.dish_id else None
         return cls(
             id=item.id,
@@ -93,7 +98,7 @@ class RecipeCard(BaseModel):
             image=r.image,
             minutes=r.total_minutes,
             servings=r.servings,
-            missing=c.missing[:8],
+            missing=missing[:8],
             needs_substitute=[
                 SubstituteNeed(ingredient=h.ingredient, rule=h.rule) for h in c.needs_substitute
             ],
@@ -177,9 +182,12 @@ _ID = r"^[A-Za-z0-9._-]{1,64}$"
 
 
 class ChatAction(BaseModel):
-    """A button on an idea or recipe card. The server turns it into a short note for the model."""
+    """A button on an idea or recipe card. The server turns it into a short note for the model.
 
-    type: Literal["get_recipes", "replace", "reject", "more"]
+    variant: the user's message is how they want the same dish made ("בטיבול אחר"); the dish keeps its id.
+    """
+
+    type: Literal["get_recipes", "replace", "reject", "more", "variant"]
     meal_id: str | None = Field(default=None, pattern=_ID)
     dish_id: str | None = Field(default=None, pattern=_ID)
 
@@ -199,6 +207,28 @@ class MoreResult(BaseModel):
     cards: list[RecipeCard]
     needs_search: bool  # nothing left from what was read: ask the model for one new search
     duplicate: bool = False
+
+
+class HaveRequest(BaseModel):
+    """ "I have it" on a missing ingredient: it goes into today's pantry, and the visible cards update."""
+
+    line: str = Field(min_length=1, max_length=200)  # the ingredient line as the card shows it
+    recipe_ids: list[str] = Field(default_factory=list, max_length=20)
+
+
+class HaveResult(BaseModel):
+    item: str  # what was added to the pantry ("בצלים")
+    pantry: list[str]
+    cards: list[RecipeCard]
+
+
+class TranscriptEntry(BaseModel):
+    """One message the user saw: user, agent (text, maybe an ideas list and cards) or cards alone."""
+
+    role: Literal["user", "agent", "cards", "error"]
+    text: str = ""
+    ideas: PlanView | None = None
+    cards: list[RecipeCard] = Field(default_factory=list)
 
 
 class SavedItem(BaseModel):

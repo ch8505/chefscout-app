@@ -20,12 +20,15 @@ from chefscout.core.errors import InvalidIdError, ToolError
 from chefscout.core.history import new_conversation_id, safe_id
 from chefscout.core.tools import ToolContext
 from chefscout.memory.storage import locked
+from chefscout.recipes.matching import ingredient_name
 from chefscout.server.chat import stream_turn
 from chefscout.server.idempotency import RequestLog
 from chefscout.server.schemas import (
     ChatRequest,
     CookedRequest,
     FeedbackRequest,
+    HaveRequest,
+    HaveResult,
     MoreRequest,
     MoreResult,
     PantryRequest,
@@ -34,7 +37,9 @@ from chefscout.server.schemas import (
     ProfileView,
     RecipeCard,
     SavedItem,
+    TranscriptEntry,
 )
+from chefscout.server.transcript import TranscriptStore
 from chefscout.tools.feedback_tools import record_feedback
 from chefscout.tools.recipe_tools import reveal_candidates
 
@@ -59,6 +64,7 @@ def create_app(
     factory = agent_factory or (lambda s: build_agent(settings, stores=s))
     user = settings.default_user_id
     requests = RequestLog(settings.data_dir)
+    transcript = TranscriptStore(settings.data_dir)
     # What the feedback endpoint needs from the stores (the same objects the agent uses).
     services = {
         "settings": settings,
@@ -109,16 +115,42 @@ def create_app(
                 action=req.action,
                 request_id=req.request_id,
                 requests=requests,
+                transcript=transcript,
             ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
+    def cards(conv: str, items) -> list[RecipeCard]:
+        """Recipe cards with what is missing compared with today's pantry."""
+        plan = stores.plans.load(user, conv)
+        pantry = stores.pantry.items(user, conv)
+        return [RecipeCard.from_checked(s, plan, pantry) for s in items]
+
+    def cards_by_id(conv: str, ids: list[str]) -> list[RecipeCard]:
+        found = [stores.recipes.get(user, conv, str(rid).upper()) for rid in ids]
+        return cards(conv, [s for s in found if s is not None])
+
     @app.get("/api/conversations/{conversation_id}/recipes", response_model=list[RecipeCard])
     def last_recipes(conversation_id: str) -> list[RecipeCard]:
         conv = conv_id(conversation_id)
-        plan = stores.plans.load(user, conv)
-        return [RecipeCard.from_checked(s, plan) for s in stores.recipes.last_shown(user, conv)]
+        return cards(conv, stores.recipes.last_shown(user, conv))
+
+    @app.get("/api/conversations/{conversation_id}/transcript", response_model=list[TranscriptEntry])
+    def get_transcript(conversation_id: str) -> list[TranscriptEntry]:
+        """The whole chat as the user saw it, for a page refresh. Cards follow today's pantry."""
+        conv = conv_id(conversation_id)
+        out = []
+        for e in transcript.entries(user, conv):
+            out.append(
+                TranscriptEntry(
+                    role=e.get("role", "agent"),
+                    text=e.get("text", ""),
+                    ideas=e.get("ideas"),
+                    cards=cards_by_id(conv, e.get("recipes", [])),
+                )
+            )
+        return out
 
     # ---- ideas (the plan of this conversation) ------------------------------------------------
     def current_plan(conv: str) -> PlanView | None:
@@ -156,8 +188,9 @@ def create_app(
                 shown = reveal_candidates(ctx, req.dish_id)
             except ToolError as e:
                 raise HTTPException(status_code=400, detail=str(e)) from e
-        plan = stores.plans.load(user, conv)
-        return MoreResult(cards=[RecipeCard.from_checked(s, plan) for s in shown], needs_search=not shown)
+        if shown:
+            transcript.add(user, conv, {"role": "cards", "recipes": [s.id for s in shown]})
+        return MoreResult(cards=cards(conv, shown), needs_search=not shown)
 
     @app.get("/api/history/saved", response_model=list[SavedItem])
     def saved() -> list[SavedItem]:
@@ -177,6 +210,14 @@ def create_app(
             user, conv_id(conversation_id), add=req.add, remove=req.remove, clear=req.clear
         )
         return {"items": items}
+
+    @app.post("/api/conversations/{conversation_id}/have", response_model=HaveResult)
+    def have(conversation_id: str, req: HaveRequest) -> HaveResult:
+        """ "I have it" on a missing ingredient: add it to today's pantry, return the updated cards."""
+        conv = conv_id(conversation_id)
+        item = ingredient_name(req.line)[:60]
+        items = stores.pantry.update(user, conv, add=[item])
+        return HaveResult(item=item, pantry=items, cards=cards_by_id(conv, req.recipe_ids))
 
     # ---- profile (lasting) ---------------------------------------------------------------------
     @app.get("/api/profile", response_model=ProfileView)

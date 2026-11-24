@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from chefscout.core.errors import ToolError
 from chefscout.core.tools import Tool, ToolContext
+from chefscout.recipes.matching import named_in
 from chefscout.recipes.plan import Dish, DishDraft, MealDraft, Plan, PlanStore, RequestParams
 from chefscout.recipes.validate import Report, validate_ideas, validate_replacement
 
@@ -85,6 +86,21 @@ def _guard_retries(ctx: ToolContext, report_text: str) -> None:
     raise ToolError(report_text + "\n" + STOP)
 
 
+def _check_named(p: _Proposal, ctx: ToolContext, report: Report) -> None:
+    """intent=recipe is only for a dish the user named. A kind of dish ("מאפה מלוח", "קינוח לשבת")
+    gets 3 different ideas, so the model never picks one dish by itself and brings it twice."""
+    said = " ".join(filter(None, (ctx.turn.get("user_text"), ctx.turn.get("previous_answer"))))
+    if not said:
+        return
+    for d in p.ideas:
+        if not named_in(said, d.name):
+            report.errors.append(
+                f"'{d.name}' is not a dish the user named: they asked for a kind of dish. use "
+                "intent=dish_ideas with 3 really different dishes (different base), and let them choose. "
+                "intent=recipe only for a dish the user named, with the name in their words"
+            )
+
+
 def _has_main(dishes: list[DishDraft]) -> bool:
     return any(d.role in ("main", "full_meal") for d in dishes)
 
@@ -125,6 +141,8 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
         raise ToolError("intent must be meal, dish_ideas, pantry, vague or recipe")
     profile = ctx.services["profiles"].load(ctx.user_id)
     report = validate_ideas(p.intent, p.request, profile, p.meals, p.ideas, rejected=_rejected(ctx))  # type: ignore[arg-type]
+    if p.intent == "recipe":
+        _check_named(p, ctx, report)
     left_out: list[str] = []
     if not report.ok:
         if _retry_left(ctx):
@@ -169,12 +187,23 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
     )
 
 
+def _cut(text: str, lines: int, chars: int) -> str:
+    kept = [x.strip() for x in text.strip().split("\n\n")[0].strip().split("\n")[:lines] if x.strip()]
+    out = "\n".join(kept)
+    return out if len(out) <= chars else out[: chars - 1].rstrip() + "…"
+
+
 def ideas_brief(ctx: ToolContext, text: str) -> str:
-    """Output filter: in an ideas turn the app shows the list, so keep only the model's opening line."""
-    if not ctx.turn.get("ideas_only") or ctx.turn.get("shown"):
-        return text
-    first = text.strip().split("\n\n")[0].strip().split("\n")[0].strip()
-    return first if len(first) <= 240 else first[:239].rstrip() + "…"
+    """Output filter: when the app shows a list or cards, the model's text is only their opening line.
+
+    Ideas turn: one line (the app renders the list). Cards turn: up to two short lines, since each
+    card already carries its title, time, missing items and note.
+    """
+    if ctx.turn.get("shown"):
+        return _cut(text, 2, 280)
+    if ctx.turn.get("ideas_only"):
+        return _cut(text, 1, 240)
+    return text
 
 
 def replace_dish(args: dict[str, Any], ctx: ToolContext) -> str:
@@ -230,6 +259,15 @@ def more_options(args: dict[str, Any], ctx: ToolContext) -> str:
     dish = plan.dish(dish_id) if plan else None
     if dish is None or not dish.active:
         raise ToolError(f"unknown or inactive dish id '{dish_id}'")
+    variant = " ".join(str(args.get("variant") or "").split())[:80]
+    if variant:  # the same dish made another way: always a new search, the dish keeps its id
+        ctx.turn.setdefault("more_options", set()).add(dish.id)
+        return (
+            f"search once for {dish.id} '{dish.name}' made this way: '{variant}' (a Hebrew query like "
+            f"'מתכון {dish.name} {variant}'). read_recipes with dish_id={dish.id}, then show_recipes only "
+            "recipes that really match the request. if none does, say so in one short line. "
+            "the rest of the plan stays."
+        )
     unseen = [r for r in dish.candidates if r not in dish.shown_recipes]
     if unseen:
         return (
@@ -344,10 +382,14 @@ TOOLS = [
     ),
     Tool(
         name="more_options",
-        description="The user wants more recipes for ONE dish only. Says whether a new search is needed.",
+        description=(
+            "The user wants more recipes for ONE dish only. Says whether a new search is needed. "
+            "variant = the same dish made another way, in the user's words ('בטיבול אחר', 'בלי טיגון', "
+            "'טבעוני'): the dish keeps its id and a new search is made."
+        ),
         input_schema={
             "type": "object",
-            "properties": {"dish_id": {"type": "string"}},
+            "properties": {"dish_id": {"type": "string"}, "variant": {"type": "string"}},
             "required": ["dish_id"],
         },
         handler=more_options,

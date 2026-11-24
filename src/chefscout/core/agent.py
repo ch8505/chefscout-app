@@ -29,6 +29,20 @@ OutputFilter = Callable[[ToolContext, str], str]
 BlockObserver = Callable[[ToolContext, dict[str, Any]], None]
 
 
+def _last_answer(messages: list[dict[str, Any]]) -> str:
+    """The text of the newest assistant message ("" if there is none)."""
+    for message in reversed(messages):
+        if message.get("role") != "assistant":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+        return "\n".join(
+            b.get("text", "") for b in content or [] if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return ""
+
+
 @dataclass(frozen=True)
 class AgentConfig:
     model: str
@@ -87,7 +101,9 @@ class Agent:
         user_id = safe_id(user_id, "user id")
         conv = safe_id(conversation_id or new_conversation_id(), "conversation id")
         ctx = ToolContext(user_id=user_id, conversation_id=conv, services=self.services)
+        ctx.turn["user_text"] = text  # what the user wrote this turn, for tools that must check it
         messages = self.store.load_messages(user_id, conv)
+        ctx.turn["previous_answer"] = _last_answer(messages)  # what the user was replying to
         meter = UsageMeter(self.config.model)
         meter.last_request_tokens = self._last_request_tokens(user_id, conv)
 
