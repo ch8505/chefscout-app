@@ -92,6 +92,49 @@ def mentions(line: str, term: str) -> bool:
     )
 
 
+def strip_term(line: str, term: str) -> str:
+    """The line without every place where term appears ("1 כוס חלב קוקוס", "חלב קוקוס" -> "1 כוס")."""
+    words, target = _tokens(line), _tokens(term)
+    if not target:
+        return " ".join(words)
+    out, i = [], 0
+    while i < len(words):
+        window = words[i : i + len(target)]
+        if len(window) == len(target) and all(_word_match(w, t) for w, t in zip(window, target, strict=True)):
+            i += len(target)
+        else:
+            out.append(words[i])
+            i += 1
+    return " ".join(out)
+
+
+def similar_names(a: str, b: str) -> bool:
+    """Identical or very similar dish names ("סלט ירקות" ~ "סלט ירקות קצוץ", not "סלט" ~ "סלט כרוב")."""
+    ta, tb = _tokens(a), _tokens(b)
+    if ta == tb:
+        return True
+    if min(len(ta), len(tb)) >= 2:
+        return mentions(a, b) or mentions(b, a)
+    return False
+
+
+def same_food(a: str, b: str) -> bool:
+    """True if two foods are the same thing for variety: "חזה עוף" ~ "עוף", "פרגית" ~ "שוקיים"."""
+    if mentions(a, b) or mentions(b, a):
+        return True
+    terms = food_terms()
+    for key in _SAME_FOOD_GROUPS:
+        group = [key, *terms.get(key, [])]
+        if any(mentions(a, t) for t in group) and any(mentions(b, t) for t in group):
+            return True
+    return False
+
+
+# Groups whose members count as one base ingredient. "בשר" is deliberately left out:
+# chicken and beef are different bases.
+_SAME_FOOD_GROUPS = tuple(" ".join(_tokens(k)) for k in ("עוף", "דגים", "פירות ים"))
+
+
 @lru_cache
 def food_terms() -> dict[str, list[str]]:
     data = json.loads(_TERMS_FILE.read_text(encoding="utf-8"))

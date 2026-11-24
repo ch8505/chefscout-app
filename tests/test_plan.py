@@ -26,7 +26,6 @@ def two_meals() -> list[MealDraft]:
     return [
         MealDraft(
             title="ארוחה מהתנור",
-            kosher="meat",
             dishes=[
                 dish(),
                 dish("side", "אורז לבן", "אורז", "parve", "stovetop"),
@@ -35,7 +34,6 @@ def two_meals() -> list[MealDraft]:
         ),
         MealDraft(
             title="ארוחה מהסיר",
-            kosher="parve",
             dishes=[
                 dish("main", "מג'דרה", "עדשים", "parve", "stovetop"),
                 dish("salad", "סלט כרוב", "כרוב", "parve", "raw"),
@@ -82,7 +80,7 @@ def test_bad_drafts_are_rejected():
     with pytest.raises(ValidationError):
         dish(role="snack")
     with pytest.raises(ValidationError):
-        MealDraft(title="ריקה", kosher="parve", dishes=[])
+        MealDraft(title="ריקה", dishes=[])
 
 
 # ---- persistence -------------------------------------------------------------------
