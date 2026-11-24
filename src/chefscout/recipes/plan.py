@@ -97,7 +97,6 @@ class Dish(DishDraft):
 
 class MealDraft(BaseModel):
     title: str = Field(min_length=2, max_length=80)
-    kosher: Kosher
     style: str = Field(default="", max_length=40)
     dishes: list[DishDraft] = Field(min_length=1, max_length=5)
 
@@ -106,12 +105,17 @@ class Meal(BaseModel):
     id: str
     title: str
     template: MealTime = "any"
-    kosher: Kosher
     style: str = ""
     dishes: list[Dish]
 
     def active_dishes(self) -> list[Dish]:
         return [d for d in self.dishes if d.active]
+
+    @property
+    def kosher(self) -> Kosher:
+        """Derived from the active dishes, so it stays right after a replacement."""
+        kinds = {d.kosher for d in self.active_dishes()}
+        return "meat" if "meat" in kinds else "dairy" if "dairy" in kinds else "parve"
 
 
 class Plan(BaseModel):
@@ -147,7 +151,6 @@ def build_plan(
             id=f"M{i}",
             title=m.title,
             template=request.meal_time,
-            kosher=m.kosher,
             style=m.style,
             dishes=[Dish(id=f"M{i}.D{j}", **d.model_dump()) for j, d in enumerate(m.dishes, 1)],
         )
