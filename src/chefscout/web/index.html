@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChefScout</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">🍳</span> ChefScout <small>השף הסייר שלך</small></div>
+    <button id="new-chat" class="btn ghost" type="button">+ שיחה חדשה</button>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main class="layout">
+    <section class="chat" aria-label="צ'אט">
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <div id="progress" class="progress" hidden><span class="spinner" aria-hidden="true"></span><span id="progress-text"></span></div>
+      <form id="composer" class="composer">
+        <textarea id="input" rows="2" maxlength="2000" placeholder="למשל: יש לי ביצים, עגבניות ולחם. מה לעשות לארוחת ערב קלילה?" required></textarea>
+        <button id="send" class="btn primary" type="submit">שליחה</button>
+      </form>
+      <div class="suggestions" id="suggestions">
+        <button type="button" class="chip-btn">תן לי 3 רעיונות לארוחת ערב קלילה</button>
+        <button type="button" class="chip-btn">תרכיב לי ארוחה ממה שיש בבית</button>
+        <button type="button" class="chip-btn">לעולם אל תציע לי טונה</button>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="הפרופיל שלי">
+      <section class="card-box">
+        <h2>🔒 תמיד <small>(נשמר לכל השיחות)</small></h2>
+        <div id="profile"></div>
+        <form id="add-pref" class="inline-form">
+          <select id="pref-kind" aria-label="סוג">
+            <option value="allergy">אלרגיה</option>
+            <option value="avoid">לעולם לא</option>
+            <option value="kitchen_rule">כלל מטבח</option>
+            <option value="like">אוהבת</option>
+            <option value="diet">תזונה</option>
+          </select>
+          <input id="pref-value" maxlength="100" placeholder="למשל: אגוזים" required>
+          <button class="btn small" type="submit">הוספה</button>
+        </form>
+      </section>
+
+      <section class="card-box">
+        <h2>🧺 בבית עכשיו <small>(רק לשיחה הזו)</small></h2>
+        <div id="pantry" class="chips"></div>
+        <form id="add-pantry" class="inline-form">
+          <input id="pantry-value" maxlength="60" placeholder="למשל: ביצים" required>
+          <button class="btn small" type="submit">הוספה</button>
+        </form>
+      </section>
+
+      <section class="card-box">
+        <h2>📖 מה הכנתי</h2>
+        <ul id="cooked" class="cooked"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <template id="recipe-card">
+    <article class="recipe">
+      <img class="recipe-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+      <div class="recipe-body">
+        <h3 class="recipe-title"></h3>
+        <div class="recipe-meta"></div>
+        <p class="recipe-note"></p>
+        <div class="recipe-subs"></div>
+        <details class="recipe-missing"><summary></summary><ul></ul></details>
+        <div class="recipe-actions">
+          <a class="btn primary small recipe-link" target="_blank" rel="noopener noreferrer">למתכון ↗</a>
+          <button class="btn ghost small recipe-cooked" type="button">הכנתי ✓</button>
+        </div>
+        <div class="rating" hidden>
+          <span>איך היה?</span>
+          <button type="button" data-rating="loved" title="אהבתי">😍</button>
+          <button type="button" data-rating="ok" title="בסדר">🙂</button>
+          <button type="button" data-rating="disliked" title="לא אהבתי">👎</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
