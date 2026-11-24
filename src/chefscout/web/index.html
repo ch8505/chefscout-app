@@ -2,85 +2,173 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ChefScout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Playpen+Sans+Hebrew:wght@400;500&display=swap">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+  <!-- Line icons (SVG sprite). Used with <use href="#..."> from the page and from app.js. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-spoon" viewBox="0 0 40 48">
+      <rect x="17" y="27" width="6" height="19" rx="3" fill="var(--metal)" stroke="var(--ink)" stroke-width="2"/>
+      <ellipse cx="20" cy="15" rx="14" ry="13" fill="var(--metal-hi)" stroke="var(--ink)" stroke-width="2.2"/>
+      <ellipse cx="14" cy="10" rx="3.5" ry="2" fill="var(--paper)" opacity=".8"/>
+    </symbol>
+    <symbol id="i-idea" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0012 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-fridge" viewBox="0 0 24 24"><rect x="5" y="2.5" width="14" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 9.5h14M8.5 5.5v1.5M8.5 12.5v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4l2.5 2M9.5 2.5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 11a7 7 0 0014 0M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 14 14"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14l-3-3M20 16H6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="face-loved" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="var(--mustard)" stroke="var(--ink)" stroke-width="2"/><path d="M9 13c1.5-2.5 4.5-2.5 6 0M19 13c1.5-2.5 4.5-2.5 6 0" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M9 19c3 6 13 6 16 0z" fill="var(--tomato)" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="face-ok" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="var(--zaatar-soft)" stroke="var(--ink)" stroke-width="2"/><circle cx="12" cy="14" r="1.8" fill="var(--ink)"/><circle cx="22" cy="14" r="1.8" fill="var(--ink)"/><path d="M11 21c3 2.5 9 2.5 12 0" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="face-disliked" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="var(--tomato-soft)" stroke="var(--ink)" stroke-width="2"/><path d="M10 12l4 2M24 12l-4 2" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M11 24c3-3 9-3 12 0" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+  </svg>
+
   <header class="topbar">
-    <div class="brand"><span class="logo" aria-hidden="true">🍳</span> ChefScout <small>השף הסייר שלך</small></div>
-    <button id="new-chat" class="btn ghost" type="button">+ שיחה חדשה</button>
+    <div class="topbar-in">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 40 48" aria-hidden="true"><use href="#i-spoon"/><circle cx="15" cy="15" r="1.8" fill="var(--ink)"/><circle cx="25" cy="15" r="1.8" fill="var(--ink)"/><path d="M15 20c2.5 2.5 7.5 2.5 10 0" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+        <div>
+          <div class="brand-name">ChefScout</div>
+          <div class="brand-sub">השף הסייר שלך</div>
+        </div>
+      </div>
+      <button id="fridge-toggle" class="pill-btn fridge-toggle" type="button" aria-controls="fridge" aria-expanded="false">
+        <svg class="ic" aria-hidden="true"><use href="#i-fridge"/></svg> המקרר <span id="fridge-count" class="count-badge">0</span>
+      </button>
+      <button id="new-chat" class="pill-btn" type="button"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> שיחה חדשה</button>
+    </div>
   </header>
 
-  <div id="banner" class="banner" hidden></div>
+  <div class="page">
+    <div id="banner" class="banner" role="alert" hidden></div>
 
-  <main class="layout">
-    <section class="chat" aria-label="צ'אט">
-      <div id="messages" class="messages" aria-live="polite"></div>
-      <div id="progress" class="progress" hidden><span class="spinner" aria-hidden="true"></span><span id="progress-text"></span></div>
-      <form id="composer" class="composer">
-        <textarea id="input" rows="2" maxlength="2000" placeholder="למשל: יש לי ביצים, עגבניות ולחם. מה לעשות לארוחת ערב קלילה?" required></textarea>
-        <button id="send" class="btn primary" type="submit">שליחה</button>
-      </form>
-      <div class="suggestions" id="suggestions">
-        <button type="button" class="chip-btn">תן לי 3 רעיונות לארוחת ערב קלילה</button>
-        <button type="button" class="chip-btn">תרכיב לי ארוחה ממה שיש בבית</button>
-        <button type="button" class="chip-btn">לעולם אל תציע לי טונה</button>
-      </div>
-    </section>
+    <main class="layout">
+      <section class="kitchen" aria-label="צ'אט">
+        <section id="home" class="home" aria-labelledby="home-title">
+          <svg class="home-spoon" viewBox="0 0 40 48" aria-hidden="true"><use href="#i-spoon"/><circle cx="15" cy="15" r="1.8" fill="var(--ink)"/><circle cx="25" cy="15" r="1.8" fill="var(--ink)"/><path d="M15 20c2.5 2.5 7.5 2.5 10 0" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+          <h1 id="home-title">מה מבשלים היום?</h1>
+          <p class="home-lead">ספרי לי מה בא לך או מה יש בבית, ואביא עד 3 מתכונים אמיתיים מהרשת, מסוננים לפי מה שאת לא אוכלת.</p>
+          <div class="quick" id="quick">
+            <button type="button" class="quick-btn" data-action="idea"><svg class="ic" aria-hidden="true"><use href="#i-idea"/></svg><span>תני לי רעיון</span></button>
+            <button type="button" class="quick-btn" data-action="pantry"><svg class="ic" aria-hidden="true"><use href="#i-fridge"/></svg><span>מה אפשר להכין ממה שיש בבית</span></button>
+            <button type="button" class="quick-btn" data-action="quick"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><span>משהו מהיר</span></button>
+            <button type="button" class="quick-btn" data-action="search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span>חיפוש מתכון</span></button>
+          </div>
+        </section>
 
-    <aside class="panel" aria-label="הפרופיל שלי">
-      <section class="card-box">
-        <h2>🔒 תמיד <small>(נשמר לכל השיחות)</small></h2>
-        <div id="profile"></div>
-        <form id="add-pref" class="inline-form">
-          <select id="pref-kind" aria-label="סוג">
-            <option value="allergy">אלרגיה</option>
-            <option value="avoid">לעולם לא</option>
-            <option value="kitchen_rule">כלל מטבח</option>
-            <option value="like">אוהבת</option>
-            <option value="diet">תזונה</option>
-          </select>
-          <input id="pref-value" maxlength="100" placeholder="למשל: אגוזים" required>
-          <button class="btn small" type="submit">הוספה</button>
+        <div id="messages" class="messages" aria-live="polite"></div>
+
+        <section id="trail" class="trail" aria-live="polite" hidden>
+          <div class="trail-head">
+            <svg id="scout-mini" class="scout-mini" viewBox="0 0 40 48" aria-hidden="true"><use href="#i-spoon"/><g class="eyes"><circle cx="13" cy="15" r="1.8" fill="var(--ink)"/><circle cx="23" cy="15" r="1.8" fill="var(--ink)"/></g><path d="M16 21h8" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/></svg>
+            <span id="progress-text" class="trail-title">חושב…</span>
+          </div>
+          <div id="track" class="track" hidden>
+            <span class="walked" aria-hidden="true"></span>
+            <div class="station" data-step="0"><span class="dot"><svg aria-hidden="true"><use href="#i-check"/></svg></span><span class="st-name">מחפש ברשת</span></div>
+            <div class="station" data-step="1"><span class="dot"><svg aria-hidden="true"><use href="#i-check"/></svg></span><span class="st-name">קורא ובודק</span></div>
+            <div class="station" data-step="2"><span class="dot"><svg aria-hidden="true"><use href="#i-check"/></svg></span><span class="st-name">מגיש</span></div>
+          </div>
+        </section>
+
+        <div class="dock">
+          <form id="composer" class="composer">
+            <label for="input" class="visually-hidden">הודעה ל-ChefScout</label>
+            <textarea id="input" rows="1" maxlength="2000" placeholder="מה בא לך הערב? או מה יש בבית?" required></textarea>
+            <button id="mic" class="round-btn" type="button" aria-label="הכתבה קולית" aria-pressed="false" hidden><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></button>
+            <button id="send" class="round-btn send" type="submit" aria-label="שליחה"><svg class="ic" aria-hidden="true"><use href="#i-send"/></svg></button>
+          </form>
+          <div class="suggestions" id="suggestions" aria-label="פעולות מהירות">
+            <button type="button" class="chip-btn" data-action="idea">רעיון לארוחה</button>
+            <button type="button" class="chip-btn" data-action="pantry">ממה שיש בבית</button>
+            <button type="button" class="chip-btn" data-action="quick">משהו מהיר</button>
+            <button type="button" class="chip-btn" data-action="search">חיפוש מתכון</button>
+          </div>
+        </div>
+      </section>
+
+      <div id="scrim" class="scrim"></div>
+      <aside id="fridge" class="fridge" aria-label="המקרר שלי">
+        <div class="f-head">
+          <h2 class="f-title">המקרר שלי</h2>
+          <button id="fridge-close" class="pill-btn fridge-close" type="button">סגירה</button>
+        </div>
+
+        <section class="zone" aria-labelledby="labels-title">
+          <h3 id="labels-title">מדבקות <small>נשמר לתמיד, בכל השיחות</small></h3>
+          <div id="profile" class="labels"></div>
+        </section>
+
+        <section class="zone" aria-labelledby="magnets-title">
+          <h3 id="magnets-title">מגנטים <small>מה יש בבית, רק לשיחה הזו</small></h3>
+          <div id="pantry" class="magnets"></div>
+        </section>
+
+        <form id="add-item" class="add-item">
+          <fieldset class="keep">
+            <legend class="visually-hidden">לכמה זמן לשמור?</legend>
+            <label class="keep-opt"><input type="radio" name="keep" value="today" checked><span>רק להיום <small>מגנט</small></span></label>
+            <label class="keep-opt"><input type="radio" name="keep" value="forever"><span>לתמיד <small>מדבקה</small></span></label>
+          </fieldset>
+          <div class="add-row">
+            <select id="pref-kind" aria-label="סוג המדבקה" hidden>
+              <option value="allergy">אלרגיה</option>
+              <option value="avoid">לעולם לא</option>
+              <option value="kitchen_rule">כלל מטבח</option>
+              <option value="like">אוהבת</option>
+              <option value="diet">תזונה</option>
+            </select>
+            <input id="item-value" maxlength="60" placeholder="מה יש בבית? למשל: ביצים" aria-label="מה להוסיף" required>
+            <button class="add-btn" type="submit" aria-label="הוספה"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
+          </div>
         </form>
-      </section>
 
-      <section class="card-box">
-        <h2>🧺 בבית עכשיו <small>(רק לשיחה הזו)</small></h2>
-        <div id="pantry" class="chips"></div>
-        <form id="add-pantry" class="inline-form">
-          <input id="pantry-value" maxlength="60" placeholder="למשל: ביצים" required>
-          <button class="btn small" type="submit">הוספה</button>
-        </form>
-      </section>
+        <section class="notebook" aria-labelledby="cooked-title">
+          <h3 id="cooked-title">הפנקס: מה הכנתי</h3>
+          <ul id="cooked"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
 
-      <section class="card-box">
-        <h2>📖 מה הכנתי</h2>
-        <ul id="cooked" class="cooked"></ul>
-      </section>
-    </aside>
-  </main>
+  <div id="toast" class="toast" role="status" hidden></div>
 
+  <!-- A recipe ticket hanging on the pass. Filled by app.js from the server's card data only. -->
   <template id="recipe-card">
-    <article class="recipe">
-      <img class="recipe-img" alt="" loading="lazy" referrerpolicy="no-referrer">
-      <div class="recipe-body">
-        <h3 class="recipe-title"></h3>
-        <div class="recipe-meta"></div>
-        <p class="recipe-note"></p>
-        <div class="recipe-subs"></div>
-        <details class="recipe-missing"><summary></summary><ul></ul></details>
-        <div class="recipe-actions">
-          <a class="btn primary small recipe-link" target="_blank" rel="noopener noreferrer">למתכון ↗</a>
-          <button class="btn ghost small recipe-cooked" type="button">הכנתי ✓</button>
-        </div>
-        <div class="rating" hidden>
-          <span>איך היה?</span>
-          <button type="button" data-rating="loved" title="אהבתי">😍</button>
-          <button type="button" data-rating="ok" title="בסדר">🙂</button>
-          <button type="button" data-rating="disliked" title="לא אהבתי">👎</button>
-        </div>
+    <article class="ticket">
+      <span class="clip" aria-hidden="true"></span>
+      <div class="t-top"><span class="t-num"></span><span class="t-site"></span></div>
+      <img class="t-img" alt="" loading="lazy" referrerpolicy="no-referrer">
+      <h3 class="t-title"></h3>
+      <div class="t-meta"></div>
+      <p class="t-note"></p>
+      <div class="t-sec t-rule">
+        <span class="t-sec-h">נגד כלל המטבח שלך · להקיש לתחליף</span>
+        <div class="t-chips"></div>
+      </div>
+      <div class="t-sec t-missing">
+        <span class="t-sec-h"></span>
+        <div class="t-chips"></div>
+      </div>
+      <div class="t-have">✓ יש לך את כל המצרכים</div>
+      <div class="t-actions">
+        <a class="t-btn go recipe-link" target="_blank" rel="noopener noreferrer">למתכון <svg class="ic" aria-hidden="true"><use href="#i-out"/></svg></a>
+        <button class="t-btn recipe-cooked" type="button">הכנתי</button>
+      </div>
+      <div class="rating" hidden>
+        <span>איך היה?</span>
+        <button type="button" data-rating="loved" aria-label="אהבתי" title="אהבתי"><svg aria-hidden="true"><use href="#face-loved"/></svg></button>
+        <button type="button" data-rating="ok" aria-label="בסדר" title="בסדר"><svg aria-hidden="true"><use href="#face-ok"/></svg></button>
+        <button type="button" data-rating="disliked" aria-label="לא בשבילי" title="לא בשבילי"><svg aria-hidden="true"><use href="#face-disliked"/></svg></button>
       </div>
     </article>
   </template>
