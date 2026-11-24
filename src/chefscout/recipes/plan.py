@@ -48,14 +48,19 @@ _TEMPLATES_FILE = Path(__file__).resolve().parent.parent / "data" / "meal_templa
 
 
 class MealTemplate(BaseModel):
-    roles: list[Role]
+    required: list[Role]  # a meal is not a meal without these (a main dish)
+    suggested: list[Role] = Field(default_factory=list)  # usual, but judgment: pasta + salad is complete
     optional: list[Role] = Field(default_factory=list)
+
+    @property
+    def roles(self) -> list[Role]:
+        return [*self.required, *self.suggested]
 
 
 @lru_cache
 def templates() -> dict[str, MealTemplate]:
     raw = json.loads(_TEMPLATES_FILE.read_text(encoding="utf-8"))
-    return {name: MealTemplate.model_validate(t) for name, t in raw.items()}
+    return {name: MealTemplate.model_validate(t) for name, t in raw.items() if not name.startswith("_")}
 
 
 def template_for(meal_time: str) -> MealTemplate:

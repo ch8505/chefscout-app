@@ -1,6 +1,12 @@
 """The gate every proposed idea passes before it is saved: profile, kashrut, meal template, variety, time.
 
-Errors send the proposal back to the model to fix. Warnings and the variety score are information only.
+Two levels:
+- errors (safety and must-haves): allergies / never-eat, meat with dairy, the kashrut or time the user
+  asked for, a recent explicit rejection, a meal with no main dish, the same main ingredient twice.
+  They send the proposal back to the model; each one remembers its dish (bad_dishes), so if the model
+  cannot fix it, the rest of the proposal can still be saved without that dish.
+- notes (judgment): a usual dish that is missing (pasta + salad is a complete lunch), low variety,
+  fewer ideas than usual. Information only, never a block.
 The same checks run for a new plan and for a single replacement dish, so a follow-up can never
 slip in something that breaks the profile.
 """
@@ -10,7 +16,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from chefscout.memory.profile import Profile
 from chefscout.recipes.kosher import classify, fits, meal_category
@@ -29,10 +35,24 @@ class Report(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     variety: Variety | None = None
     variety_notes: list[str] = Field(default_factory=list)
+    # The dishes (by identity, not name: two meals may share a dish name) that have an error of their own.
+    _bad: list[DishDraft] = PrivateAttr(default_factory=list)
 
     @property
     def ok(self) -> bool:
         return not self.errors
+
+    def dish_error(self, dish: DishDraft, message: str) -> None:
+        self.errors.append(message)
+        if not self.is_bad(dish):
+            self._bad.append(dish)
+
+    def is_bad(self, dish: DishDraft) -> bool:
+        return any(dish is b for b in self._bad)
+
+    @property
+    def bad_names(self) -> list[str]:
+        return [b.name for b in self._bad]
 
     def text(self) -> str:
         """Short summary for the model."""
@@ -52,31 +72,32 @@ def check_dish(
     lines = [d.name, *d.key_ingredients]
     hits = check_recipe(lines, profile, [])
     for hit in hits.blocked_by:
-        report.errors.append(f"'{d.name}' breaks the profile: {hit.rule} ({hit.ingredient})")
+        report.dish_error(d, f"'{d.name}' breaks the profile: {hit.rule} ({hit.ingredient})")
     for hit in hits.needs_substitute:
         report.warnings.append(f"'{d.name}' needs a substitute for {hit.ingredient} [{hit.rule}]")
 
     k = classify(lines)
     if k.category == "mixed":
-        report.errors.append(f"'{d.name}' mixes meat and dairy")
+        report.dish_error(d, f"'{d.name}' mixes meat and dairy")
     elif k.category in ("meat", "dairy") and d.kosher != k.category:
         found = (k.meat or k.dairy or k.optional_dairy)[0]
-        report.errors.append(f"'{d.name}' is marked {d.kosher} but has {found} ({k.category})")
+        report.dish_error(d, f"'{d.name}' is marked {d.kosher} but has {found} ({k.category})")
     if not fits(request.kosher, d.kosher):
-        report.errors.append(f"'{d.name}' is {d.kosher}, but the request is {request.kosher}")
+        report.dish_error(d, f"'{d.name}' is {d.kosher}, but the request is {request.kosher}")
 
     fit = time_fit(d.est_minutes, request.max_minutes)
     if fit == "over":
-        report.errors.append(
+        report.dish_error(
+            d,
             f"'{d.name}' takes about {d.est_minutes} min; the user asked for up to {request.max_minutes} "
-            f"(at most {close_limit(request.max_minutes)})"
+            f"(at most {close_limit(request.max_minutes)})",
         )
     elif fit == "close":
         report.warnings.append(f"'{d.name}' is a bit over the time ({d.est_minutes} min)")
 
     for name in rejected:
         if same_name(d.name, name):
-            report.errors.append(f"'{d.name}' was rejected by the user recently. suggest something else")
+            report.dish_error(d, f"'{d.name}' was rejected by the user recently. suggest something else")
             break
 
 
@@ -84,7 +105,7 @@ def _unique_names(dishes: list[DishDraft], report: Report) -> None:
     for i, a in enumerate(dishes):
         for b in dishes[i + 1 :]:
             if same_name(a.name, b.name):
-                report.errors.append(f"'{a.name}' and '{b.name}' are the same dish. make them different")
+                report.dish_error(b, f"'{a.name}' and '{b.name}' are the same dish. make them different")
 
 
 # ---- one meal ------------------------------------------------------------------------
@@ -98,13 +119,22 @@ def check_meal(meal: MealDraft, request: RequestParams, report: Report) -> None:
     template = template_for(request.meal_time)
     roles = [d.role for d in meal.dishes]
     covered = set(roles) | ({"main", "side"} if "full_meal" in roles else set())
-    missing = [r for r in template.roles if r not in covered]
+    missing = [r for r in template.required if r not in covered]
     if missing:
         report.errors.append(f"meal '{meal.title}' needs: {', '.join(missing)}")
+    usual = [r for r in template.suggested if r not in covered]
+    if usual:
+        report.warnings.append(
+            f"meal '{meal.title}' has no {', '.join(usual)}; fine if the meal is complete as it is"
+        )
     doubled = sorted({r for r in roles if roles.count(r) > 1})
     if doubled or ("full_meal" in roles and "main" in roles):
         report.errors.append(f"meal '{meal.title}' has more than one {', '.join(doubled) or 'main dish'}")
-    extra = [r for r in roles if r not in {*template.roles, *template.optional, "full_meal"}]
+    extra = [
+        r
+        for r in roles
+        if r not in {*template.required, *template.suggested, *template.optional, "full_meal"}
+    ]
     if extra:
         report.warnings.append(f"meal '{meal.title}' adds {', '.join(extra)}")
 
@@ -167,9 +197,10 @@ def validate_ideas(
         for i, (_, a) in enumerate(mains):
             for _, b in mains[i + 1 :]:
                 if same_food(a.base, b.base):
-                    report.errors.append(
+                    report.dish_error(
+                        b,
                         f"both meals are based on {a.base} ('{a.name}', '{b.name}'). "
-                        "change one main ingredient"
+                        "change one main ingredient",
                     )
         if len(mains) == 2:
             (ma, a), (mb, b) = mains
@@ -185,7 +216,7 @@ def validate_ideas(
         for i, a in enumerate(ideas):
             for b in ideas[i + 1 :]:
                 if same_food(a.base, b.base):
-                    report.errors.append(f"'{a.name}' and '{b.name}' are both based on {a.base}")
+                    report.dish_error(b, f"'{a.name}' and '{b.name}' are both based on {a.base}")
         if len(ideas) > 1:
             _variety([(a, b, "", "") for i, a in enumerate(ideas) for b in ideas[i + 1 :]], report)
 

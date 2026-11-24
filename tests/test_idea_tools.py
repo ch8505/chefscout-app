@@ -71,12 +71,52 @@ def test_meal_request_saves_two_meals_without_any_search(settings):
     assert "<profile>" in json.dumps(client.calls[0]["messages"], ensure_ascii=False)
 
 
-def test_a_bad_plan_gets_one_fix_then_stop_and_nothing_is_saved(settings):
+PASTA_MEAL = {  # the real case from the first test run: a complete dairy lunch without a side
+    "title": "ארוחה חלבית קלילה",
+    "style": "איטלקי",
+    "dishes": [
+        d("main", "פסטה ברוטב עגבניות וגבינה", "פסטה", "dairy", keys=["פסטה", "עגבניות", "גבינה"]),
+        d("salad", "סלט ירוק", "חסה", method="raw"),
+    ],
+}
+
+
+def test_a_complete_meal_without_a_side_is_accepted(settings):
+    meals = {**MEALS, "meals": [CHICKEN, PASTA_MEAL]}
+    r, stores, _ = run(settings, [("propose_ideas", meals)])
+    [(out, err)] = outputs(r)
+    assert not err and "has no side; fine if the meal is complete" in out
+    assert len(stores.plans.load(U, C).meals) == 2
+
+
+def test_a_bad_plan_gets_two_fixes_then_is_saved_without_the_bad_dish(settings):
     twice_chicken = {**MEALS, "meals": [CHICKEN, {**CHICKEN, "title": "עוד עוף"}]}
-    r, stores, _ = run(settings, [("propose_ideas", twice_chicken)], [("propose_ideas", twice_chicken)])
-    (first, e1), (second, e2) = outputs(r)
-    assert e1 and e2 and "both meals are based on" in first and "call propose_ideas once more" in first
-    assert "STOP" in second
+    calls = [[("propose_ideas", twice_chicken)]] * 3
+    r, stores, _ = run(settings, *calls)
+    (o1, e1), (o2, e2), (o3, e3) = outputs(r)
+    assert e1 and e2 and "both meals are based on" in o1 and "call propose_ideas once more" in o2
+    assert not e3 and "left out:" in o3 and "Do not mention checks" in o3
+    plan = stores.plans.load(U, C)
+    assert [m.title for m in plan.meals] == ["ארוחה מהתנור"]  # the repeated meal was left out
+
+
+def test_rescue_keeps_the_meal_and_drops_only_the_dish_that_breaks_the_profile(settings):
+    stores = build_stores(settings)
+    stores.profiles.remember(U, "avoid", "טונה")
+    tuna_salad = d("salad", "סלט טונה", "טונה", keys=["טונה", "ביצה"], method="raw")
+    meals = {**MEALS, "meals": [{**LENTILS, "dishes": [*LENTILS["dishes"][:2], tuna_salad]}, CHICKEN]}
+    r, stores, _ = run(settings, *[[("propose_ideas", meals)]] * 3, stores=stores)
+    assert "left out: סלט טונה" in outputs(r)[2][0]
+    plan = stores.plans.load(U, C)
+    assert [x.name for x in plan.meal("M1").dishes] == ["מג'דרה", "פתיתים"]  # the meal stays, without tuna
+    assert all("טונה" not in x.name for x in plan.all_dishes())
+
+
+def test_when_nothing_can_be_saved_the_model_is_told_not_to_talk_about_checks(settings):
+    wrong_shape = {"intent": "meal", "ideas": [d("main", "מג'דרה", "עדשים")]}
+    r, stores, _ = run(settings, *[[("propose_ideas", wrong_shape)]] * 3)
+    last, err = outputs(r)[2]
+    assert err and "STOP" in last and "Do NOT tell the user about checks" in last
     assert stores.plans.load(U, C) is None and stores.history.entries(U) == []
 
 

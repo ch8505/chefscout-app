@@ -1,7 +1,8 @@
 {
-  "breakfast": {"roles": ["main", "salad"], "optional": ["side"]},
-  "lunch": {"roles": ["main", "side", "salad"], "optional": []},
-  "dinner": {"roles": ["main", "salad"], "optional": ["side"]},
-  "shabbat": {"roles": ["main", "side", "salad"], "optional": ["soup", "dessert"]},
-  "any": {"roles": ["main", "side", "salad"], "optional": []}
+  "_comment": "required = a meal is not a meal without it. suggested = usually there, but a meal may be complete without it (pasta + salad). optional = fine to add.",
+  "breakfast": {"required": ["main"], "suggested": ["salad"], "optional": ["side"]},
+  "lunch": {"required": ["main"], "suggested": ["side", "salad"], "optional": ["soup", "dessert"]},
+  "dinner": {"required": ["main"], "suggested": ["salad"], "optional": ["side", "soup"]},
+  "shabbat": {"required": ["main"], "suggested": ["side", "salad"], "optional": ["soup", "dessert"]},
+  "any": {"required": ["main"], "suggested": ["side", "salad"], "optional": ["soup", "dessert"]}
 }

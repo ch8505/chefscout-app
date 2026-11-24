@@ -17,9 +17,14 @@ from pydantic import BaseModel, Field, ValidationError
 from chefscout.core.errors import ToolError
 from chefscout.core.tools import Tool, ToolContext
 from chefscout.recipes.plan import Dish, DishDraft, MealDraft, Plan, PlanStore, RequestParams
-from chefscout.recipes.validate import validate_ideas, validate_replacement
+from chefscout.recipes.validate import Report, validate_ideas, validate_replacement
 
-MAX_FIXES = 1  # one corrected proposal per turn, so a bad plan cannot loop and cost money
+MAX_FIXES = 2  # corrected proposals per turn (~0.1 cent each), so a bad plan cannot loop and cost money
+# After the last try: never a failure message about checks. Offer what is possible.
+STOP = (
+    "STOP: do not call this tool again in this turn. Do NOT tell the user about checks, errors or rules. "
+    "In simple friendly words, offer what you can, or ask one short question about what they would like."
+)
 
 
 class _Proposal(BaseModel):
@@ -67,15 +72,48 @@ def plan_summary(plan: Plan) -> str:
     return "\n".join(lines)
 
 
-def _guard_retries(ctx: ToolContext, report_text: str) -> None:
+def _retry_left(ctx: ToolContext) -> bool:
+    """Count one failed proposal; True while the model may still fix it."""
     fails = ctx.turn.get("failed_proposals", 0) + 1
     ctx.turn["failed_proposals"] = fails
-    if fails > MAX_FIXES:
-        raise ToolError(
-            report_text + "\nSTOP: do not propose again in this turn. Tell the user briefly what is not "
-            "possible (or offer fewer dishes) in plain words."
-        )
-    raise ToolError(report_text + "\nfix these and call propose_ideas once more")
+    return fails <= MAX_FIXES
+
+
+def _guard_retries(ctx: ToolContext, report_text: str) -> None:
+    if _retry_left(ctx):
+        raise ToolError(report_text + "\nfix these and call the tool once more")
+    raise ToolError(report_text + "\n" + STOP)
+
+
+def _has_main(dishes: list[DishDraft]) -> bool:
+    return any(d.role in ("main", "full_meal") for d in dishes)
+
+
+def _salvage(p: _Proposal, report: Report, ctx: ToolContext) -> _Proposal | None:
+    """The proposal without the dishes that could not be fixed, if what is left is still good."""
+    if not report.bad_names:
+        return None  # nothing dish-specific to leave out
+    if p.intent == "meal":
+        meals = [
+            m.model_copy(update={"dishes": [d for d in m.dishes if not report.is_bad(d)]}) for m in p.meals
+        ]
+        candidate = p.model_copy(update={"meals": [m for m in meals if _has_main(m.dishes)]})
+        if not candidate.meals:
+            return None
+    else:
+        candidate = p.model_copy(update={"ideas": [d for d in p.ideas if not report.is_bad(d)]})
+        if not candidate.ideas:
+            return None
+    profile = ctx.services["profiles"].load(ctx.user_id)
+    again = validate_ideas(
+        candidate.intent,  # type: ignore[arg-type]
+        candidate.request,
+        profile,
+        candidate.meals,
+        candidate.ideas,
+        rejected=_rejected(ctx),
+    )
+    return candidate if again.ok else None
 
 
 # ---- tools ----------------------------------------------------------------------------
@@ -87,8 +125,14 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
         raise ToolError("intent must be meal, dish_ideas, pantry, vague or recipe")
     profile = ctx.services["profiles"].load(ctx.user_id)
     report = validate_ideas(p.intent, p.request, profile, p.meals, p.ideas, rejected=_rejected(ctx))  # type: ignore[arg-type]
+    left_out: list[str] = []
     if not report.ok:
-        _guard_retries(ctx, report.text())
+        if _retry_left(ctx):
+            raise ToolError(report.text() + "\nfix these and call propose_ideas once more")
+        rescued = _salvage(p, report, ctx)
+        if rescued is None:
+            raise ToolError(report.text() + "\n" + STOP)
+        p, left_out = rescued, list(dict.fromkeys(report.bad_names))
 
     plan = _plans(ctx).new_plan(
         ctx.user_id,
@@ -107,7 +151,13 @@ def propose_ideas(args: dict[str, Any], ctx: ToolContext) -> str:
         return "saved. search now for:\n" + "\n".join(f"{d.id}: {d.query or d.name}" for d in picked)
 
     ctx.turn["ideas_only"] = True  # no recipe reading and no links in this turn
-    notes = f"\n{report.text()}" if report.text() else ""
+    if left_out:  # saved without the dishes that could not be fixed
+        notes = (
+            f"\nleft out: {', '.join(left_out)}. Do not mention checks; just present what is here "
+            "(the user can ask to add a dish)."
+        )
+    else:
+        notes = f"\n{report.text()}" if report.text() else ""
     return (
         f"saved ideas (shown to the user as idea cards, no links):\n{plan_summary(plan)}{notes}\n"
         "Now answer briefly. Do NOT search yet: the user chooses first (select_dishes)."
@@ -218,8 +268,9 @@ TOOLS = [
             "לשבת') -> 2 different meals, each with the dishes the meal needs; dish_ideas = 'ideas for a "
             "main dish / something light' -> 3 different dishes; pantry = from what is at home -> 3 dishes; "
             "vague = 'something tasty' -> 3 different directions; recipe = one specific dish the user named "
-            "('a chocolate cake recipe') -> 1 idea, then search right away. The code checks the profile, "
-            "kashrut (never meat with dairy), time and variety, and returns ids."
+            "('a chocolate cake recipe') -> 1 idea, then search right away. For intent=meal fill `meals` "
+            "(each with a main dish; side and salad when they fit), otherwise fill `ideas`. The code checks "
+            "the profile, kashrut (never meat with dairy), time and variety, and returns ids."
         ),
         input_schema={
             "type": "object",
