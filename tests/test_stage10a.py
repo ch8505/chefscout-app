@@ -247,3 +247,22 @@ def test_a_kitchen_rule_ingredient_is_not_listed_again_as_missing():
     card = RecipeCard.from_checked(CheckedRecipe(id="R1", recipe=recipe, check=check), pantry=[])
     assert card.missing == ["1 חבילת בצק עלים"] and card.needs_substitute[0].ingredient == "100 גרם מרגרינה"
     assert ingredient_name("1 חבילת בצק עלים") == "בצק עלים"
+
+
+@pytest.mark.parametrize(
+    ("line", "name"),
+    [
+        ("רבע כוס גבינת פרמזן מפוררת", "גבינת פרמזן"),
+        ("1 ושליש כוס שמרים יבשים", "שמרים יבשים"),
+        ("חצי חבילת פסטה", "פסטה"),
+        ("1 כפית תמצית וניל", "תמצית וניל"),  # "ו" at the start of a food stays
+    ],
+)
+def test_ingredient_name_with_amounts_in_words(line, name):
+    assert ingredient_name(line) == name
+
+
+def test_section_titles_are_not_missing_ingredients():
+    from chefscout.recipes.matching import missing_lines
+
+    assert missing_lines(["לבצק:", "2 כוסות קמח", "לפיזור מעל:", "---"], []) == ["2 כוסות קמח"]

@@ -384,9 +384,14 @@ function recipeCard(card) {
   node.querySelector(".recipe-cooked").addEventListener("click", (e) => {
     e.currentTarget.hidden = true;
     rating.hidden = false;
-    rating.querySelector("button").focus();
+    rating.querySelector("[data-rating]").focus();
   });
-  rating.querySelectorAll("button").forEach((btn) => btn.addEventListener("click", async () => {
+  rating.querySelector(".rating-close").addEventListener("click", () => {
+    rating.hidden = true;
+    node.querySelector(".recipe-cooked").hidden = false;
+    node.querySelector(".recipe-cooked").focus();
+  });
+  rating.querySelectorAll("[data-rating]").forEach((btn) => btn.addEventListener("click", async () => {
     const value = btn.dataset.rating;
     try {
       await post("/api/cooked", { title: card.title, url: card.url, rating: value });
@@ -690,6 +695,13 @@ $("new-chat").addEventListener("click", () => {
   toast("שיחה חדשה. מה שבפרופיל נשאר, \"בבית היום\" מתחיל מחדש.");
 });
 
+// The dock is fixed at the bottom: keep room for its real height, so it never covers the chat.
+function watchDock() {
+  const set = () => document.documentElement.style.setProperty("--dock-h", `${document.querySelector(".dock").offsetHeight}px`);
+  set();
+  if (window.ResizeObserver) new ResizeObserver(set).observe(document.querySelector(".dock"));
+}
+
 // ---- after a refresh: the whole chat as it was --------------------------------------------------------------------
 async function restore() {
   const entries = await api(`/api/conversations/${conversationId}/transcript`);
@@ -715,6 +727,7 @@ async function restore() {
 
 async function start() {
   showHome(true);
+  watchDock();
   setupDictation();
   try {
     const health = await api("/api/health");

@@ -170,11 +170,16 @@
             </div>
           </details>
         </div>
-        <div class="rating" hidden>
-          <span>איך יצא?</span>
-          <button type="button" data-rating="loved">אהבתי</button>
-          <button type="button" data-rating="ok">בסדר</button>
-          <button type="button" data-rating="disliked">לא בשבילי</button>
+        <div class="rating" role="group" aria-label="איך יצא?" hidden>
+          <div class="rating-head">
+            <span class="rating-q">איך יצא?</span>
+            <button type="button" class="icon-btn rating-close" aria-label="ביטול"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="rating-opts">
+            <button type="button" data-rating="loved"><span class="emo" aria-hidden="true">😍</span>אהבתי</button>
+            <button type="button" data-rating="ok"><span class="emo" aria-hidden="true">🙂</span>בסדר</button>
+            <button type="button" data-rating="disliked"><span class="emo" aria-hidden="true">😕</span>לא בשבילי</button>
+          </div>
         </div>
       </div>
     </article>
